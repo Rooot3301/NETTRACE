@@ -1584,3 +1584,162 @@ python nettrace.py -i
     
     print(examples_text)
     input("\nAppuyez sur Entrée pour continuer...")
+
+    def show_monitoring_menu(self):
+        """Menu de monitoring et alertes"""
+        from analyzers.monitoring import MonitoringSystem
+        
+        monitor = MonitoringSystem(verbose=self.verbose)
+        
+        while True:
+            print_info("\n" + "="*60)
+            print_info("🔔 SYSTÈME DE MONITORING")
+            print_info("="*60)
+            
+            # Afficher le statut
+            status = monitor.get_monitoring_status()
+            print_info(f"📊 Domaines surveillés: {status['total_domains']}")
+            print_info(f"⏰ Vérifications dues: {status['domains_due_check']}")
+            print_info(f"🚨 Alertes 24h: {status['total_alerts_24h']}")
+            print_info(f"📈 Alertes 7j: {status['total_alerts_7d']}")
+            
+            print("\n1. 📝 Ajouter un domaine au monitoring")
+            print("2. 🗑️  Retirer un domaine du monitoring")
+            print("3. 📋 Lister les domaines surveillés")
+            print("4. 📊 Voir le statut détaillé")
+            print("5. 🔍 Lancer une vérification manuelle")
+            print("6. 📜 Voir l'historique des alertes")
+            print("7. ⚙️  Configuration des alertes")
+            print("8. 🔙 Retour au menu principal")
+            
+            try:
+                choice = input("\n👉 Votre choix: ").strip()
+                
+                if choice == '1':
+                    domain = input("🌐 Domaine à surveiller: ").strip()
+                    if validate_domain(domain):
+                        interval = input("⏰ Intervalle de vérification en heures (défaut: 1): ").strip() 
+                        try:
+                            interval_seconds = int(interval) * 3600 if interval else 3600
+                        except ValueError:
+                            interval_seconds = 3600
+                        
+                        monitor.add_domain_monitoring(domain, interval_seconds)
+                    else:
+                        print_error("❌ Domaine invalide")
+                
+                elif choice == '2':
+                    domain = input("🌐 Domaine à retirer: ").strip()
+                    monitor.remove_domain_monitoring(domain)
+                
+                elif choice == '3':
+                    domains = monitor.list_monitored_domains()
+                    if domains:
+                        print_info("\n📋 DOMAINES SURVEILLÉS:")
+                        print_info("-" * 60)
+                        for domain_info in domains:
+                            print_info(f"🌐 {domain_info['domain']}")
+                            print_info(f"   📅 Ajouté: {domain_info['added_date'][:10]}")
+                            print_info(f"   🔍 Dernière vérif: {domain_info['last_check'][:19] if domain_info['last_check'] else 'Jamais'}")
+                            print_info(f"   ⏰ Prochaine vérif: {domain_info['next_check'][:19] if domain_info['next_check'] else 'N/A'}")
+                            print_info(f"   🚨 Alertes: {domain_info['alerts_count']}")
+                            print_info(f"   ⏱️  Intervalle: {domain_info['check_interval']//3600}h")
+                            print_info("")
+                    else:
+                        print_warning("⚠️  Aucun domaine en surveillance")
+                
+                elif choice == '4':
+                    status = monitor.get_monitoring_status()
+                    print_info("\n📊 STATUT DÉTAILLÉ DU MONITORING:")
+                    print_info("-" * 60)
+                    print_info(f"🌐 Domaines surveillés: {status['total_domains']}")
+                    print_info(f"⏰ Vérifications dues: {status['domains_due_check']}")
+                    print_info(f"🚨 Alertes 24h: {status['total_alerts_24h']}")
+                    print_info(f"📈 Alertes 7j: {status['total_alerts_7d']}")
+                    print_info(f"🔄 Statut système: {status['system_status'].upper()}")
+                
+                elif choice == '5':
+                    print_info("🔍 Lancement de la vérification manuelle...")
+                    stats = monitor.run_monitoring_check()
+                    
+                    print_info("\n📊 RÉSULTATS DE LA VÉRIFICATION:")
+                    print_info("-" * 60)
+                    print_info(f"✅ Domaines vérifiés: {stats['domains_checked']}")
+                    print_info(f"⚠️  Domaines avec changements: {stats['domains_with_changes']}")
+                    print_info(f"📊 Total changements: {stats['total_changes']}")
+                    print_info(f"📧 Alertes envoyées: {stats['alerts_sent']}")
+                    
+                    if stats['errors']:
+                        print_warning(f"\n❌ Erreurs ({len(stats['errors'])}):")
+                        for error in stats['errors'][:3]:
+                            print_warning(f"   • {error}")
+                        if len(stats['errors']) > 3:
+                            print_warning(f"   ... et {len(stats['errors']) - 3} autres erreurs")
+                
+                elif choice == '6':
+                    domain = input("🌐 Domaine (ou ENTER pour tous): ").strip()
+                    days = input("📅 Nombre de jours (défaut: 7): ").strip()
+                    
+                    try:
+                        days = int(days) if days else 7
+                    except ValueError:
+                        days = 7
+                    
+                    if domain and validate_domain(domain):
+                        alerts = monitor.get_domain_alerts(domain, days)
+                        print_info(f"\n📜 ALERTES POUR {domain} ({days} derniers jours):")
+                    else:
+                        # Toutes les alertes récentes
+                        cutoff = datetime.now() - timedelta(days=days)
+                        alerts = [
+                            alert for alert in monitor.alerts_history['alerts']
+                            if datetime.fromisoformat(alert['timestamp']) > cutoff
+                        ]
+                        print_info(f"\n📜 TOUTES LES ALERTES ({days} derniers jours):")
+                    
+                    print_info("-" * 60)
+                    if alerts:
+                        for alert in alerts[-20:]:  # 20 dernières
+                            severity_emoji = {'low': '🟢', 'medium': '🟡', 'high': '🔴'}
+                            emoji = severity_emoji.get(alert.get('severity', 'low'), '⚪')
+                            
+                            alert_type = alert.get('type', 'unknown').replace('_', ' ').title()
+                            timestamp = alert.get('timestamp', '')[:19]
+                            domain_name = alert.get('domain', domain or 'N/A')
+                            
+                            print_info(f"{emoji} {timestamp} - {domain_name}")
+                            print_info(f"   {alert_type}")
+                            
+                            if alert.get('record_type'):
+                                print_info(f"   Type: {alert['record_type']}")
+                            if alert.get('values'):
+                                values = ', '.join(alert['values'][:3])
+                                if len(alert['values']) > 3:
+                                    values += f" (+{len(alert['values'])-3} autres)"
+                                print_info(f"   Valeurs: {values}")
+                            print_info("")
+                    else:
+                        print_warning("⚠️  Aucune alerte trouvée")
+                
+                elif choice == '7':
+                    print_info("⚙️  Configuration des alertes:")
+                    print_info("   📧 Email: " + ("✅ Activé" if NOTIFICATION_SETTINGS['email']['enabled'] else "❌ Désactivé"))
+                    print_info("   🔗 Webhook: " + ("✅ Activé" if NOTIFICATION_SETTINGS['webhook']['enabled'] else "❌ Désactivé"))
+                    print_info("   💬 Slack: " + ("✅ Activé" if NOTIFICATION_SETTINGS['slack']['enabled'] else "❌ Désactivé"))
+                    print_info("\n💡 Configurez les variables d'environnement pour activer les notifications")
+                    print_info("   Voir examples/config_example.env pour les détails")
+                
+                elif choice == '8':
+                    break
+                
+                else:
+                    print_warning("⚠️  Choix invalide")
+                    
+            except KeyboardInterrupt:
+                print_warning("\n⚠️  Retour au menu principal")
+                break
+            except Exception as e:
+                print_error(f"❌ Erreur: {str(e)}")
+                if self.verbose:
+                    import traceback
+                    traceback.print_exc()
