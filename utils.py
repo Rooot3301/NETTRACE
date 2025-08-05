@@ -48,10 +48,256 @@ def print_error(text):
 def print_warning(text):
     """Affiche un message d'avertissement"""
     print(f"{Fore.YELLOW}{text}{Style.RESET_ALL}")
+def show_interactive_menu():
+    """Affiche le menu interactif principal"""
+    while True:
+        print("\n" + "=" * 60)
+        print(f"{Fore.CYAN}{Style.BRIGHT}🎮 MENU PRINCIPAL - NETTRACE{Style.RESET_ALL}")
+        print("=" * 60)
+        
+        menu_options = [
+            ("1", "🔍 Analyse simple d'un domaine", "Analyser un domaine unique"),
+            ("2", "📊 Générer un rapport complet", "Analyse + export automatique"),
+            ("3", "📋 Analyse en lot", "Analyser plusieurs domaines"),
+            ("4", "⚙️  Configuration système", "Vérifier les dépendances"),
+            ("5", "❓ Aide", "Documentation et exemples"),
+            ("6", "🚪 Quitter", "Fermer l'application")
+        ]
+        
+        for option, title, desc in menu_options:
+            print(f"{Fore.YELLOW}{option}.{Style.RESET_ALL} {Fore.WHITE}{title}{Style.RESET_ALL}")
+            print(f"   {Fore.CYAN}{desc}{Style.RESET_ALL}")
+        
+        print("\n" + "-" * 60)
+        choice = input(f"{Fore.GREEN}Votre choix (1-6): {Style.RESET_ALL}").strip()
+        
+        if choice == "1":
+            handle_single_analysis()
+        elif choice == "2":
+            handle_report_generation()
+        elif choice == "3":
+            handle_batch_analysis()
+        elif choice == "4":
+            handle_system_config()
+        elif choice == "5":
+            show_help()
+        elif choice == "6":
+            print_success("\n👋 Merci d'avoir utilisé NetTrace!")
+            break
+        else:
+            print_error("❌ Choix invalide. Veuillez sélectionner une option entre 1 et 6.")
+            time.sleep(1)
 
+def handle_single_analysis():
+    """Gère l'analyse simple d'un domaine"""
+    print_section("Analyse simple")
+    domain = input(f"{Fore.GREEN}Entrez le domaine à analyser: {Style.RESET_ALL}").strip()
+    
+    if not domain:
+        print_error("❌ Aucun domaine spécifié.")
+        return
+    
+    verbose = input(f"{Fore.YELLOW}Mode verbeux? (o/N): {Style.RESET_ALL}").strip().lower() == 'o'
+    
+    print_info(f"\n🚀 Lancement de l'analyse pour: {domain}")
+    run_analysis(domain, verbose=verbose)
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
 def print_info(text):
+def handle_report_generation():
+    """Gère la génération de rapport automatique"""
+    print_section("Génération de rapport")
+    domain = input(f"{Fore.GREEN}Entrez le domaine à analyser: {Style.RESET_ALL}").strip()
+    
+    if not domain:
+        print_error("❌ Aucun domaine spécifié.")
+        return
+    
+    # Choix du format
+    print_info("\nFormats disponibles:")
+    print_info("1. JSON (recommandé)")
+    print_info("2. TXT (lisible)")
+    print_info("3. Les deux")
+    
+    format_choice = input(f"{Fore.YELLOW}Choix du format (1-3): {Style.RESET_ALL}").strip()
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_filename = f"nettrace_{domain.replace('.', '_')}_{timestamp}"
+    
+    verbose = input(f"{Fore.YELLOW}Mode verbeux? (o/N): {Style.RESET_ALL}").strip().lower() == 'o'
+    
+    if format_choice == "1":
+        filename = f"{base_filename}.json"
+        run_analysis(domain, output=filename, format_type='json', verbose=verbose)
+    elif format_choice == "2":
+        filename = f"{base_filename}.txt"
+        run_analysis(domain, output=filename, format_type='txt', verbose=verbose)
+    elif format_choice == "3":
+        json_file = f"{base_filename}.json"
+        txt_file = f"{base_filename}.txt"
+        
+        analyzer = DomainAnalyzer(domain, verbose=verbose)
+        results = analyzer.run_full_analysis()
+        analyzer.display_results(results)
+        
+        analyzer.export_results(results, json_file, 'json')
+        analyzer.export_results(results, txt_file, 'txt')
+        
+        print_success(f"✅ Rapports sauvegardés:")
+        print_success(f"   📄 {json_file}")
+        print_success(f"   📄 {txt_file}")
+    else:
+        print_error("❌ Choix invalide.")
+        return
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
     """Affiche un message d'information"""
+def handle_batch_analysis():
+    """Gère l'analyse en lot de plusieurs domaines"""
+    print_section("Analyse en lot")
+    
+    print_info("Options d'entrée:")
+    print_info("1. Saisie manuelle")
+    print_info("2. Fichier texte")
+    
+    input_choice = input(f"{Fore.YELLOW}Choix (1-2): {Style.RESET_ALL}").strip()
+    
+    domains = []
+    
+    if input_choice == "1":
+        print_info("\nEntrez les domaines (un par ligne, ligne vide pour terminer):")
+        while True:
+            domain = input(f"{Fore.GREEN}Domaine: {Style.RESET_ALL}").strip()
+            if not domain:
+                break
+            domains.append(domain)
+    
+    elif input_choice == "2":
+        filename = input(f"{Fore.GREEN}Nom du fichier: {Style.RESET_ALL}").strip()
+        try:
+            with open(filename, 'r') as f:
+                domains = [line.strip() for line in f if line.strip()]
+        except FileNotFoundError:
+            print_error(f"❌ Fichier '{filename}' introuvable.")
+            return
+        except Exception as e:
+            print_error(f"❌ Erreur lecture fichier: {str(e)}")
+            return
+    else:
+        print_error("❌ Choix invalide.")
+        return
+    
+    if not domains:
+        print_error("❌ Aucun domaine à analyser.")
+        return
+    
+    # Options d'export
+    export_individual = input(f"{Fore.YELLOW}Générer des rapports individuels? (o/N): {Style.RESET_ALL}").strip().lower() == 'o'
+    verbose = input(f"{Fore.YELLOW}Mode verbeux? (o/N): {Style.RESET_ALL}").strip().lower() == 'o'
+    
+    print_info(f"\n🚀 Analyse de {len(domains)} domaine(s)...")
+    
+    success_count = 0
+    for i, domain in enumerate(domains, 1):
+        print_info(f"\n[{i}/{len(domains)}] Analyse de: {domain}")
+        
+        try:
+            if export_individual:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"nettrace_{domain.replace('.', '_')}_{timestamp}.json"
+                success = run_analysis(domain, output=filename, verbose=verbose)
+            else:
+                success = run_analysis(domain, verbose=verbose)
+            
+            if success:
+                success_count += 1
+            
+            # Pause entre analyses
+            if i < len(domains):
+                time.sleep(2)
+                
+        except KeyboardInterrupt:
+            print_warning("\n⚠️  Analyse interrompue par l'utilisateur")
+            break
+    
+    print_info(f"\n📊 Résultats: {success_count}/{len(domains)} analyses réussies")
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
     print(f"{Fore.CYAN}{text}{Style.RESET_ALL}")
+def handle_system_config():
+    """Affiche la configuration système"""
+    print_section("Configuration système")
+    
+    # Vérification des modules Python
+    print_info("🐍 Modules Python:")
+    modules = ['whois', 'dns.resolver', 'requests', 'colorama', 'dateutil']
+    
+    for module in modules:
+        try:
+            __import__(module)
+            print_success(f"   ✅ {module}")
+        except ImportError:
+            print_error(f"   ❌ {module} (pip install {module})")
+    
+    # Vérification des outils externes
+    print_info("\n🛠️  Outils externes:")
+    tools = ['subfinder', 'amass']
+    
+    for tool in tools:
+        try:
+            result = subprocess.run([tool, '--version'], capture_output=True, timeout=5)
+            if result.returncode == 0:
+                print_success(f"   ✅ {tool}")
+            else:
+                print_warning(f"   ⚠️  {tool} (installé mais erreur)")
+        except FileNotFoundError:
+            print_warning(f"   ❌ {tool} (optionnel)")
+        except subprocess.TimeoutExpired:
+            print_warning(f"   ⚠️  {tool} (timeout)")
+        except Exception:
+            print_warning(f"   ❓ {tool} (statut inconnu)")
+    
+    # Informations système
+    print_info("\n💻 Système:")
+    import platform
+    print_info(f"   OS: {platform.system()} {platform.release()}")
+    print_info(f"   Python: {platform.python_version()}")
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def show_help():
+    """Affiche l'aide détaillée"""
+    print_section("Aide - NetTrace")
+    
+    help_text = f"""
+{Fore.CYAN}🎯 OBJECTIF{Style.RESET_ALL}
+NetTrace est un outil OSINT pour analyser des domaines sans APIs payantes.
+
+{Fore.CYAN}🔍 FONCTIONNALITÉS{Style.RESET_ALL}
+• WHOIS lookup (registrar, dates, propriétaire)
+• Résolution DNS complète (A, AAAA, MX, TXT, NS)
+• Extraction de sous-domaines (crt.sh, subfinder, amass)
+• Score de confiance intelligent (0-100)
+• Export en JSON/TXT
+• Lien VirusTotal automatique
+
+{Fore.CYAN}📊 SCORE DE CONFIANCE{Style.RESET_ALL}
+• 80-100: Domaine établi et fiable
+• 60-79:  Domaine standard
+• 0-59:   Domaine récent ou suspect
+
+{Fore.CYAN}💡 CONSEILS{Style.RESET_ALL}
+• Installez subfinder/amass pour plus de sous-domaines
+• Utilisez le mode verbeux pour le débogage
+• Les rapports JSON sont plus complets que TXT
+
+{Fore.CYAN}⚖️  ÉTHIQUE{Style.RESET_ALL}
+• Reconnaissance passive uniquement
+• Respect des sources publiques
+• Usage responsable et légal
+    """
+    
+    print(help_text)
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
 
 class DomainAnalyzer:
     """Classe principale pour l'analyse OSINT de domaines"""
