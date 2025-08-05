@@ -1,0 +1,5 @@
+requests>=2.25.1
+dnspython>=2.1.0
+python-whois>=0.7.3
+colorama>=0.4.4
+python-dateutil>=2.8.2
