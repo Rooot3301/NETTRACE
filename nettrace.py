@@ -18,7 +18,7 @@ from core.display import (print_banner, print_section, print_success,
 from config.settings import REPORTS_DIR
 from core.cache import cache
 
-def run_analysis(domain, output=None, format_type='json', verbose=False):
+def run_analysis(domain, output=None, format_type='json', verbose=False, analysis_type='complete'):
     """Lance l'analyse pour un domaine donné"""
     # Validation du domaine
     domain = domain.lower().strip()
@@ -27,14 +27,20 @@ def run_analysis(domain, output=None, format_type='json', verbose=False):
         return False
     
     print_info(f"🎯 Analyse du domaine: {domain}")
+    print_info(f"📋 Type d'analyse: {analysis_type}")
     print_info("=" * 60)
     
     # Initialisation de l'analyseur
     analyzer = DomainAnalyzer(domain, verbose=verbose)
     
     try:
-        # Exécution de l'analyse complète
-        results = analyzer.run_full_analysis()
+        # Exécution de l'analyse selon le type
+        if analysis_type == 'quick':
+            results = analyzer.run_quick_analysis()
+        elif analysis_type == 'standard':
+            results = analyzer.run_standard_analysis()
+        else:
+            results = analyzer.run_full_analysis()
         
         # Affichage des résultats
         analyzer.display_results(results)
