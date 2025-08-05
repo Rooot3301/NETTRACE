@@ -13,7 +13,7 @@ from datetime import datetime
 
 from config.settings import DEFAULT_HEADERS, REQUEST_TIMEOUT, TECHNOLOGY_SIGNATURES, SECURITY_HEADERS
 from core.cache import cache
-from utils import print_info, print_success, print_warning, print_error
+from core.display import print_info, print_success, print_warning, print_error
 
 class WebAnalyzer:
     """Analyseur de technologies web et sécurité"""

@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config.settings import REQUEST_TIMEOUT
 from core.cache import cache
-from utils import print_info, print_success, print_warning
+from core.display import print_info, print_success, print_warning
 
 class GeoAnalyzer:
     """Analyseur géographique"""

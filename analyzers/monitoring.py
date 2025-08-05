@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 
 from config.settings import NOTIFICATION_SETTINGS, REPORTS_DIR
 from core.cache import cache
-from utils import print_info, print_success, print_warning, print_error
+from core.display import print_info, print_success, print_warning, print_error
 
 class MonitoringSystem:
     """Système de monitoring des domaines"""

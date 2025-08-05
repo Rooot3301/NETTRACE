@@ -12,7 +12,7 @@ from typing import Dict, List, Any
 from io import StringIO
 
 from config.settings import REPORTS_DIR
-from utils import print_success, print_error
+from core.display import print_success, print_error
 
 class ReportGenerator:
     """Générateur de rapports multi-formats"""

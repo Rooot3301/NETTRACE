@@ -10,7 +10,7 @@ from urllib.parse import quote
 
 from config.settings import API_KEYS, REQUEST_TIMEOUT
 from core.cache import cache
-from utils import print_info, print_warning, print_error
+from core.display import print_info, print_warning, print_error
 
 class ReputationAnalyzer:
     """Analyseur de réputation"""
