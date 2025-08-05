@@ -27,42 +27,299 @@ from colorama import Fore, Style
 def show_interactive_menu():
     """Affiche le menu interactif principal"""
     while True:
-        print("\n" + "=" * 60)
-        print(f"{Fore.CYAN}{Style.BRIGHT}🎮 MENU PRINCIPAL - NETTRACE{Style.RESET_ALL}")
-        print("=" * 60)
+        # Effacer l'écran pour une meilleure expérience
+        import os
+        os.system('clear' if os.name == 'posix' else 'cls')
         
-        menu_options = [
-            ("1", "🔍 Analyse simple d'un domaine", "Analyser un domaine unique"),
-            ("2", "📊 Générer un rapport complet", "Analyse + export automatique"),
-            ("3", "📋 Analyse en lot", "Analyser plusieurs domaines"),
-            ("4", "⚙️  Configuration système", "Vérifier les dépendances"),
-            ("5", "❓ Aide", "Documentation et exemples"),
-            ("6", "🚪 Quitter", "Fermer l'application")
-        ]
+        # Bannière principale
+        print(f"""
+{Fore.CYAN}{Style.BRIGHT}
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           🔍 NETTRACE v2.0                                  ║
+║                    Outil OSINT d'analyse de domaines                        ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  {Fore.GREEN}✨ Analyse complète • Sécurité • Réputation • Géolocalisation{Fore.CYAN}     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+{Style.RESET_ALL}""")
         
-        for option, title, desc in menu_options:
-            print(f"{Fore.YELLOW}{option}.{Style.RESET_ALL} {Fore.WHITE}{title}{Style.RESET_ALL}")
-            print(f"   {Fore.CYAN}{desc}{Style.RESET_ALL}")
+        # Statistiques du cache
+        cache_stats = cache.get_stats()
+        print(f"{Fore.BLUE}📊 Cache: {cache_stats['files']} fichiers • {cache_stats['total_size_mb']} MB{Style.RESET_ALL}")
         
-        print("\n" + "-" * 60)
-        choice = input(f"{Fore.GREEN}Votre choix (1-6): {Style.RESET_ALL}").strip()
+        # Menu principal avec design moderne
+        print(f"""
+{Fore.YELLOW}{Style.BRIGHT}
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              🎯 ANALYSES                                    │
+├─────────────────────────────────────────────────────────────────────────────┤{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.GREEN}1{Fore.WHITE}. 🔍 Analyse rapide        │ WHOIS + DNS + Technologies web          │{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.GREEN}2{Fore.WHITE}. 🎯 Analyse standard      │ + Sécurité + Réputation basique         │{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.GREEN}3{Fore.WHITE}. 🚀 Analyse complète      │ + Géolocalisation + Monitoring           │{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.GREEN}4{Fore.WHITE}. 📊 Rapport automatique   │ Analyse + Export HTML/JSON               │{Style.RESET_ALL}
+{Fore.YELLOW}{Style.BRIGHT}├─────────────────────────────────────────────────────────────────────────────┤
+│                              📋 OUTILS                                     │
+├─────────────────────────────────────────────────────────────────────────────┤{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.CYAN}5{Fore.WHITE}. 📁 Analyse en lot        │ Traiter plusieurs domaines              │{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.CYAN}6{Fore.WHITE}. 🔄 Monitoring            │ Surveillance continue des changements   │{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.CYAN}7{Fore.WHITE}. 📈 Rapports comparatifs  │ Comparer plusieurs domaines             │{Style.RESET_ALL}
+{Fore.YELLOW}{Style.BRIGHT}├─────────────────────────────────────────────────────────────────────────────┤
+│                            ⚙️  CONFIGURATION                               │
+├─────────────────────────────────────────────────────────────────────────────┤{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.MAGENTA}8{Fore.WHITE}. 🛠️  Système & Dépendances │ Vérifier installation et outils         │{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.MAGENTA}9{Fore.WHITE}. 💾 Gestion du cache     │ Statistiques, nettoyage, configuration  │{Style.RESET_ALL}
+{Fore.YELLOW}{Style.BRIGHT}├─────────────────────────────────────────────────────────────────────────────┤
+│                              📖 AIDE                                       │
+├─────────────────────────────────────────────────────────────────────────────┤{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.YELLOW}h{Fore.WHITE}. ❓ Aide & Documentation  │ Guide d'utilisation et exemples         │{Style.RESET_ALL}
+{Fore.WHITE}│ {Fore.YELLOW}e{Fore.WHITE}. 🔍 Exemples pratiques   │ Cas d'usage et démonstrations           │{Style.RESET_ALL}
+{Fore.YELLOW}{Style.BRIGHT}└─────────────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}
+
+{Fore.RED}│ {Fore.RED}q{Fore.WHITE}. 🚪 Quitter{Style.RESET_ALL}
+""")
+        
+        # Prompt amélioré
+        print(f"{Fore.GREEN}{Style.BRIGHT}┌─ Votre choix ─────────────────────────────────────────────────────────────┐{Style.RESET_ALL}")
+        choice = input(f"{Fore.GREEN}│ {Style.BRIGHT}➤{Style.RESET_ALL} ").strip().lower()
+        print(f"{Fore.GREEN}{Style.BRIGHT}└───────────────────────────────────────────────────────────────────────────┘{Style.RESET_ALL}")
         
         if choice == "1":
-            handle_single_analysis()
+            handle_quick_analysis()
         elif choice == "2":
-            handle_report_generation()
+            handle_standard_analysis()
         elif choice == "3":
-            handle_batch_analysis()
+            handle_complete_analysis()
         elif choice == "4":
-            handle_system_config()
+            handle_report_generation()
         elif choice == "5":
-            show_help()
+            handle_batch_analysis()
         elif choice == "6":
+            handle_monitoring_menu()
+        elif choice == "7":
+            handle_comparative_analysis()
+        elif choice == "8":
+            handle_system_config()
+        elif choice == "9":
+            handle_cache_management()
+        elif choice == "h":
+            show_help()
+        elif choice == "e":
+            show_examples()
+        elif choice == "q":
+            print(f"\n{Fore.CYAN}{Style.BRIGHT}👋 Merci d'avoir utilisé NetTrace!{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}🔍 Pour plus d'infos: https://github.com/nettrace{Style.RESET_ALL}\n")
             print_success("\n👋 Merci d'avoir utilisé NetTrace!")
             break
         else:
-            print_error("❌ Choix invalide. Veuillez sélectionner une option entre 1 et 6.")
-            time.sleep(1)
+            print_error("❌ Choix invalide. Utilisez les numéros/lettres du menu.")
+            input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def handle_quick_analysis():
+    """Gère l'analyse rapide"""
+    from nettrace import run_analysis
+    
+    print_section("🔍 Analyse rapide")
+    print_info("Cette analyse inclut : WHOIS + DNS + Sous-domaines + Technologies web")
+    
+    domain = input(f"{Fore.GREEN}Entrez le domaine à analyser: {Style.RESET_ALL}").strip()
+    
+    if not domain:
+        print_error("❌ Aucun domaine spécifié.")
+        return
+    
+    verbose = input(f"{Fore.YELLOW}Mode verbeux? (o/N): {Style.RESET_ALL}").strip().lower() == 'o'
+    
+    print_info(f"\n🚀 Lancement de l'analyse rapide pour: {domain}")
+    run_analysis(domain, verbose=verbose, analysis_type="quick")
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def handle_standard_analysis():
+    """Gère l'analyse standard"""
+    from nettrace import run_analysis
+    
+    print_section("🎯 Analyse standard")
+    print_info("Cette analyse inclut : Analyse rapide + Sécurité + Réputation basique")
+    
+    domain = input(f"{Fore.GREEN}Entrez le domaine à analyser: {Style.RESET_ALL}").strip()
+    
+    if not domain:
+        print_error("❌ Aucun domaine spécifié.")
+        return
+    
+    verbose = input(f"{Fore.YELLOW}Mode verbeux? (o/N): {Style.RESET_ALL}").strip().lower() == 'o'
+    
+    print_info(f"\n🚀 Lancement de l'analyse standard pour: {domain}")
+    run_analysis(domain, verbose=verbose, analysis_type="standard")
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def handle_complete_analysis():
+    """Gère l'analyse complète"""
+    from nettrace import run_analysis
+    
+    print_section("🚀 Analyse complète")
+    print_info("Cette analyse inclut : Tout + Géolocalisation + Réputation avancée + Monitoring")
+    
+    domain = input(f"{Fore.GREEN}Entrez le domaine à analyser: {Style.RESET_ALL}").strip()
+    
+    if not domain:
+        print_error("❌ Aucun domaine spécifié.")
+        return
+    
+    verbose = input(f"{Fore.YELLOW}Mode verbeux? (o/N): {Style.RESET_ALL}").strip().lower() == 'o'
+    
+    print_info(f"\n🚀 Lancement de l'analyse complète pour: {domain}")
+    run_analysis(domain, verbose=verbose, analysis_type="complete")
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def handle_monitoring_menu():
+    """Gère le menu de monitoring"""
+    print_section("🔄 Monitoring des domaines")
+    
+    monitoring = MonitoringSystem(verbose=True)
+    status = monitoring.get_monitoring_status()
+    
+    print_info(f"📊 Domaines surveillés: {status['total_domains']}")
+    print_info(f"🚨 Alertes actives: {status['active_alerts']}")
+    
+    print_info("\nOptions disponibles:")
+    print_info("1. Ajouter un domaine au monitoring")
+    print_info("2. Voir les domaines surveillés")
+    print_info("3. Supprimer un domaine du monitoring")
+    print_info("4. Retour au menu principal")
+    
+    choice = input(f"\n{Fore.YELLOW}Votre choix (1-4): {Style.RESET_ALL}").strip()
+    
+    if choice == "1":
+        domain = input(f"{Fore.GREEN}Domaine à surveiller: {Style.RESET_ALL}").strip()
+        if domain:
+            if monitoring.add_domain_monitoring(domain):
+                print_success(f"✅ Domaine {domain} ajouté au monitoring")
+            else:
+                print_warning(f"⚠️  Domaine {domain} déjà surveillé")
+    
+    elif choice == "2":
+        domains = monitoring.monitoring_data.get('domains', {})
+        if domains:
+            print_info("📋 Domaines surveillés:")
+            for domain, data in domains.items():
+                last_check = data.get('last_check', 'Jamais')
+                alerts_count = len(data.get('alerts', []))
+                print_info(f"   • {domain} - Dernière vérif: {last_check} - Alertes: {alerts_count}")
+        else:
+            print_info("Aucun domaine surveillé")
+    
+    elif choice == "3":
+        domain = input(f"{Fore.GREEN}Domaine à supprimer: {Style.RESET_ALL}").strip()
+        if domain and monitoring.remove_domain_monitoring(domain):
+            print_success(f"✅ Domaine {domain} supprimé du monitoring")
+        else:
+            print_error("❌ Domaine non trouvé")
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def handle_comparative_analysis():
+    """Gère l'analyse comparative"""
+    print_section("📈 Analyse comparative")
+    
+    print_info("Entrez les domaines à comparer (un par ligne, ligne vide pour terminer):")
+    domains = []
+    
+    while True:
+        domain = input(f"{Fore.GREEN}Domaine {len(domains)+1}: {Style.RESET_ALL}").strip()
+        if not domain:
+            break
+        domains.append(domain)
+        if len(domains) >= 10:  # Limiter à 10 domaines
+            print_warning("⚠️  Maximum 10 domaines pour la comparaison")
+            break
+    
+    if len(domains) < 2:
+        print_error("❌ Il faut au moins 2 domaines pour une comparaison")
+        return
+    
+    print_info(f"\n🚀 Analyse comparative de {len(domains)} domaines...")
+    
+    # Analyser chaque domaine
+    results = []
+    for i, domain in enumerate(domains, 1):
+        print_info(f"[{i}/{len(domains)}] Analyse de {domain}...")
+        analyzer = DomainAnalyzer(domain, verbose=False)
+        result = analyzer.run_standard_analysis()
+        results.append(result)
+        time.sleep(1)  # Pause entre analyses
+    
+    # Générer rapport comparatif
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"comparative_analysis_{timestamp}.csv"
+    
+    report_gen = ReportGenerator()
+    if report_gen.generate_comparative_report(results, filename):
+        print_success(f"✅ Rapport comparatif sauvegardé: {filename}")
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def handle_cache_management():
+    """Gère la gestion du cache"""
+    print_section("💾 Gestion du cache")
+    
+    stats = cache.get_stats()
+    
+    print_info(f"📊 Statistiques du cache:")
+    print_info(f"   • Fichiers: {stats['files']}")
+    print_info(f"   • Taille totale: {stats['total_size_mb']} MB")
+    print_info(f"   • Statut: {'Activé' if stats['enabled'] else 'Désactivé'}")
+    
+    print_info("\nActions disponibles:")
+    print_info("1. Vider tout le cache")
+    print_info("2. Vider le cache DNS")
+    print_info("3. Vider le cache WHOIS")
+    print_info("4. Vider le cache de réputation")
+    print_info("5. Retour au menu principal")
+    
+    choice = input(f"\n{Fore.YELLOW}Votre choix (1-5): {Style.RESET_ALL}").strip()
+    
+    if choice == "1":
+        cache.clear()
+        print_success("✅ Cache entièrement vidé")
+    elif choice == "2":
+        cache.clear('dns')
+        print_success("✅ Cache DNS vidé")
+    elif choice == "3":
+        cache.clear('whois')
+        print_success("✅ Cache WHOIS vidé")
+    elif choice == "4":
+        cache.clear('reputation')
+        print_success("✅ Cache de réputation vidé")
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def show_examples():
+    """Affiche des exemples pratiques"""
+    print_section("🔍 Exemples pratiques")
+    
+    examples = [
+        ("Analyse d'un site e-commerce", "amazon.com", "Vérifier la sécurité et les technologies"),
+        ("Vérification d'un site suspect", "exemple-suspect.com", "Analyser la réputation et l'âge"),
+        ("Audit de sécurité", "monsite.com", "Vérifier les headers et certificats SSL"),
+        ("Reconnaissance passive", "entreprise.com", "Découvrir l'infrastructure et sous-domaines"),
+        ("Analyse comparative", "site1.com vs site2.com", "Comparer deux concurrents")
+    ]
+    
+    print_info("📋 Cas d'usage courants:")
+    for i, (title, domain, desc) in enumerate(examples, 1):
+        print_info(f"\n{i}. {Fore.YELLOW}{title}{Style.RESET_ALL}")
+        print_info(f"   Domaine: {Fore.GREEN}{domain}{Style.RESET_ALL}")
+        print_info(f"   Objectif: {desc}")
+    
+    print_info(f"\n{Fore.CYAN}💡 Conseils d'utilisation:{Style.RESET_ALL}")
+    print_info("• Utilisez l'analyse rapide pour un premier aperçu")
+    print_info("• L'analyse complète pour une investigation approfondie")
+    print_info("• Le monitoring pour surveiller les changements")
+    print_info("• Les rapports HTML pour partager les résultats")
+    
+    input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
 
 def handle_single_analysis():
     """Gère l'analyse simple d'un domaine"""
