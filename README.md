@@ -56,6 +56,9 @@ go install -v github.com/OWASP/Amass/v3/...@master
 ### Commandes de base
 
 ```bash
+# Mode interactif (recommandé)
+python nettrace.py --interactive
+
 # Analyse simple
 python nettrace.py --domain google.com
 
@@ -77,10 +80,14 @@ python nettrace.py --domain site.com --verbose
 | `--output, -o` | Fichier de sortie | `-o rapport.json` |
 | `--format, -f` | Format d'export (json/txt) | `-f txt` |
 | `--verbose, -v` | Mode verbeux | `-v` |
+| `--interactive, -i` | Mode interactif avec menu | `-i` |
 
 ### Exemples d'usage
 
 ```bash
+# Mode interactif complet
+python nettrace.py -i
+
 # Analyse complète avec export
 python nettrace.py -d facebook.com -o facebook_analysis.json -v
 
@@ -90,6 +97,31 @@ python nettrace.py -d github.com
 # Export en format texte
 python nettrace.py -d stackoverflow.com -f txt -o report.txt
 ```
+
+## 🎮 Mode interactif
+
+NetTrace propose un mode interactif avec menu pour une utilisation plus conviviale :
+
+```
+╔══════════════════════════════════════════════════════════╗
+║                    🔍 NETTRACE MENU                     ║
+╠══════════════════════════════════════════════════════════╣
+║  1. 🎯 Analyser un domaine                               ║
+║  2. 📊 Analyser avec rapport automatique                ║
+║  3. 📁 Analyser plusieurs domaines (batch)              ║
+║  4. ⚙️  Configuration et outils                         ║
+║  5. 📖 Aide et exemples                                 ║
+║  6. 🚪 Quitter                                          ║
+╚══════════════════════════════════════════════════════════╝
+```
+
+### Fonctionnalités du menu
+
+- **Analyse simple** : Analyse rapide d'un domaine
+- **Rapport automatique** : Génération automatique de fichiers de rapport avec timestamp
+- **Analyse en lot** : Traitement de plusieurs domaines (saisie manuelle ou fichier)
+- **Configuration** : Vérification des dépendances et outils installés
+- **Aide intégrée** : Exemples et documentation directement dans l'outil
 
 ## 📊 Score de confiance
 

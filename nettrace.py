@@ -107,5 +107,58 @@ Exemples d'usage:
         sys.exit(0 if success else 1)
 
 def main():
+    print_banner()
+    
+    parser = argparse.ArgumentParser(
+        description="NetTrace - Outil OSINT d'analyse de domaines",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Exemples d'usage:
+  python nettrace.py --domain google.com
+  python nettrace.py --domain example.com --output report.json
+  python nettrace.py --domain test.com --format txt --output report.txt
+  python nettrace.py --interactive
+        """
+    )
+    
+    parser.add_argument(
+        '--domain', '-d', 
+        help='Domaine à analyser (ex: google.com)'
+    )
+    
+    parser.add_argument(
+        '--output', '-o', 
+        help='Fichier de sortie pour sauvegarder le rapport'
+    )
+    
+    parser.add_argument(
+        '--format', '-f', 
+        choices=['json', 'txt'], 
+        default='json',
+        help='Format de sortie (json ou txt, défaut: json)'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v', 
+        action='store_true',
+        help='Mode verbeux'
+    )
+    
+    parser.add_argument(
+        '--interactive', '-i', 
+        action='store_true',
+        help='Mode interactif avec menu'
+    )
+    
+    args = parser.parse_args()
+    
+    # Mode interactif par défaut si aucun domaine spécifié
+    if args.interactive or not args.domain:
+        show_interactive_menu()
+    else:
+        # Mode direct
+        success = run_analysis(args.domain, args.output, args.format, args.verbose)
+        sys.exit(0 if success else 1)
+
 if __name__ == "__main__":
     main()
