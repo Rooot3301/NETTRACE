@@ -27,7 +27,7 @@ def print_banner():
 ██║ ╚████║███████╗   ██║      ██║   ██║  ██║██║  ██║╚██████╗███████╗
 ╚═╝  ╚═══╝╚══════╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝
 {Style.RESET_ALL}
-{Fore.GREEN}🔍 Outil OSINT d'analyse de domaines - Sans APIs payantes{Style.RESET_ALL}
+{Fore.GREEN}🔍 Outil OSINT d'analyse de domaines {Style.RESET_ALL}
 {Fore.BLUE}By: Root3301 | Version: 1.0{Style.RESET_ALL}
     """
     print(banner)
