@@ -12,9 +12,47 @@ import json
 import sys
 import time
 from datetime import datetime
-from utils import DomainAnalyzer, print_banner, print_section, print_success, print_error, print_warning, print_info
+from utils import DomainAnalyzer, print_banner, print_section, print_success, print_error, print_warning, print_info, show_interactive_menu
 
-def main():
+def run_analysis(domain, output=None, format_type='json', verbose=False):
+    """Lance l'analyse pour un domaine donné"""
+    # Validation du domaine
+    domain = domain.lower().strip()
+    if not domain or '.' not in domain:
+        print_error("❌ Domaine invalide. Veuillez spécifier un domaine valide (ex: google.com)")
+        return False
+    
+    print_info(f"🎯 Analyse du domaine: {domain}")
+    print_info("=" * 60)
+    
+    # Initialisation de l'analyseur
+    analyzer = DomainAnalyzer(domain, verbose=verbose)
+    
+    try:
+        # Exécution de l'analyse complète
+        results = analyzer.run_full_analysis()
+        
+        # Affichage des résultats
+        analyzer.display_results(results)
+        
+        # Export si demandé
+        if output:
+            analyzer.export_results(results, output, format_type)
+            print_success(f"✅ Rapport sauvegardé: {output}")
+        
+        print_info("\n" + "=" * 60)
+        print_success("🎉 Analyse terminée avec succès!")
+        return True
+        
+    except KeyboardInterrupt:
+        print_warning("\n⚠️  Analyse interrompue par l'utilisateur")
+        return False
+    except Exception as e:
+        print_error(f"❌ Erreur lors de l'analyse: {str(e)}")
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        return False
     print_banner()
     
     parser = argparse.ArgumentParser(
@@ -52,44 +90,22 @@ Exemples d'usage:
         help='Mode verbeux'
     )
     
+    parser.add_argument(
+        '--interactive', '-i', 
+        action='store_true',
+        help='Mode interactif avec menu'
+    )
+    
     args = parser.parse_args()
     
-    # Validation du domaine
-    domain = args.domain.lower().strip()
-    if not domain or '.' not in domain:
-        print_error("❌ Domaine invalide. Veuillez spécifier un domaine valide (ex: google.com)")
-        sys.exit(1)
-    
-    print_info(f"🎯 Analyse du domaine: {domain}")
-    print_info("=" * 60)
-    
-    # Initialisation de l'analyseur
-    analyzer = DomainAnalyzer(domain, verbose=args.verbose)
-    
-    try:
-        # Exécution de l'analyse complète
-        results = analyzer.run_full_analysis()
-        
-        # Affichage des résultats
-        analyzer.display_results(results)
-        
-        # Export si demandé
-        if args.output:
-            analyzer.export_results(results, args.output, args.format)
-            print_success(f"✅ Rapport sauvegardé: {args.output}")
-        
-        print_info("\n" + "=" * 60)
-        print_success("🎉 Analyse terminée avec succès!")
-        
-    except KeyboardInterrupt:
-        print_warning("\n⚠️  Analyse interrompue par l'utilisateur")
-        sys.exit(0)
-    except Exception as e:
-        print_error(f"❌ Erreur lors de l'analyse: {str(e)}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        sys.exit(1)
+    # Mode interactif
+    if args.interactive or not args.domain:
+        show_interactive_menu()
+    else:
+        # Mode direct
+        success = run_analysis(args.domain, args.output, args.format, args.verbose)
+        sys.exit(0 if success else 1)
 
+def main():
 if __name__ == "__main__":
     main()
