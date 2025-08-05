@@ -77,8 +77,22 @@ def handle_single_analysis():
     
     verbose = input(f"{Fore.YELLOW}Mode verbeux? (o/N): {Style.RESET_ALL}").strip().lower() == 'o'
     
+    # Options d'analyse avancée
+    print_info("\n🔧 Options d'analyse:")
+    print_info("1. Analyse standard")
+    print_info("2. Analyse complète (recommandé)")
+    print_info("3. Analyse rapide (sans réputation)")
+    
+    analysis_type = input(f"{Fore.YELLOW}Type d'analyse (1-3, défaut: 2): {Style.RESET_ALL}").strip() or "2"
+    
     print_info(f"\n🚀 Lancement de l'analyse pour: {domain}")
-    run_analysis(domain, verbose=verbose)
+    
+    if analysis_type == "1":
+        run_analysis(domain, verbose=verbose, analysis_type="standard")
+    elif analysis_type == "3":
+        run_analysis(domain, verbose=verbose, analysis_type="quick")
+    else:
+        run_analysis(domain, verbose=verbose, analysis_type="complete")
     
     input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
 
@@ -238,13 +252,63 @@ def handle_system_config():
         except Exception:
             print_warning(f"   ❓ {tool} (statut inconnu)")
     
+    # Vérification du cache
+    print_info("\n💾 Cache:")
+    cache_stats = cache.get_stats()
+    print_info(f"   📁 Fichiers en cache: {cache_stats['files']}")
+    print_info(f"   💽 Taille totale: {cache_stats['total_size_mb']} MB")
+    print_info(f"   ⚙️  Statut: {'Activé' if cache_stats['enabled'] else 'Désactivé'}")
+    
+    # Configuration des APIs
+    print_info("\n🔑 APIs configurées:")
+    from config.settings import API_KEYS
+    
+    for api_name, api_key in API_KEYS.items():
+        if api_key:
+            print_success(f"   ✅ {api_name.upper()}")
+        else:
+            print_warning(f"   ❌ {api_name.upper()} (non configurée)")
+    
     # Informations système
     print_info("\n💻 Système:")
     import platform
     print_info(f"   OS: {platform.system()} {platform.release()}")
     print_info(f"   Python: {platform.python_version()}")
     
+    # Actions disponibles
+    print_info("\n🔧 Actions disponibles:")
+    print_info("1. Vider le cache")
+    print_info("2. Test de connectivité")
+    print_info("3. Retour au menu")
+    
+    action = input(f"\n{Fore.YELLOW}Action (1-3): {Style.RESET_ALL}").strip()
+    
+    if action == "1":
+        cache.clear()
+        print_success("✅ Cache vidé avec succès")
+    elif action == "2":
+        print_info("🔄 Test de connectivité...")
+        test_connectivity()
+    
     input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
+
+def test_connectivity():
+    """Test la connectivité vers les services externes"""
+    services = [
+        ("Google DNS", "8.8.8.8", 53),
+        ("Cloudflare DNS", "1.1.1.1", 53),
+        ("crt.sh", "crt.sh", 443),
+        ("VirusTotal", "www.virustotal.com", 443)
+    ]
+    
+    for name, host, port in services:
+        try:
+            import socket
+            sock = socket.create_connection((host, port), timeout=5)
+            sock.close()
+            print_success(f"   ✅ {name}")
+        except Exception:
+            print_error(f"   ❌ {name}")
 
 def show_help():
     """Affiche l'aide détaillée"""
@@ -591,41 +655,31 @@ class DomainAnalyzer:
             'analysis': {}
         }
         
+        print_info("🚀 Lancement de l'analyse complète...")
+        print_info("=" * 60)
+        
         # 1. WHOIS
-        print_info("🔄 Étape 1/5: Recherche WHOIS...")
+        print_info("🔄 Étape 1/9: Recherche WHOIS...")
         results['analysis']['whois'] = self.whois_lookup()
         time.sleep(1)
         
         # 2. DNS
-        print_info("\n🔄 Étape 2/5: Résolution DNS...")
+        print_info("\n🔄 Étape 2/9: Résolution DNS...")
         results['analysis']['dns'] = self.dns_resolution()
         time.sleep(1)
         
         # 3. Sous-domaines
-        print_info("\n🔄 Étape 3/5: Recherche de sous-domaines...")
+        print_info("\n🔄 Étape 3/9: Recherche de sous-domaines...")
         results['analysis']['subdomains'] = self.find_subdomains()
         time.sleep(1)
         
-        # 4. VirusTotal
-        print_info("\n🔄 Étape 4/5: Lien VirusTotal...")
-        results['analysis']['virustotal_link'] = self.virustotal_link()
-        time.sleep(1)
-        
-        # 5. Score de confiance
-        print_info("\n🔄 Étape 5/5: Calcul du score de confiance...")
-        results['analysis']['trust_score'] = self.calculate_trust_score(
-            results['analysis']['whois'],
-            results['analysis']['dns'],
-            results['analysis']['subdomains']
-        )
-        
-        # 6. Analyse des technologies web
-        print_info("\n🔄 Étape 6/9: Analyse des technologies web...")
+        # 4. Technologies web
+        print_info("\n🔄 Étape 4/9: Analyse des technologies web...")
         results['analysis']['web_technologies'] = self.web_analyzer.analyze_technologies()
         time.sleep(1)
         
-        # 7. Analyse de sécurité
-        print_info("\n🔄 Étape 7/9: Analyse de sécurité...")
+        # 5. Analyse de sécurité
+        print_info("\n🔄 Étape 5/9: Analyse de sécurité...")
         results['analysis']['security'] = {
             'headers': self.web_analyzer.analyze_security_headers(),
             'ssl': self.web_analyzer.analyze_ssl_certificate(),
@@ -634,14 +688,14 @@ class DomainAnalyzer:
         }
         time.sleep(1)
         
-        # 8. Analyse géographique
-        print_info("\n🔄 Étape 8/9: Analyse géographique...")
+        # 6. Analyse géographique
+        print_info("\n🔄 Étape 6/9: Analyse géographique...")
         results['analysis']['geolocation'] = self.geo_analyzer.analyze_hosting_infrastructure()
         results['analysis']['latency'] = self.geo_analyzer.analyze_latency()
         time.sleep(1)
         
-        # 9. Analyse de réputation
-        print_info("\n🔄 Étape 9/9: Analyse de réputation...")
+        # 7. Analyse de réputation
+        print_info("\n🔄 Étape 7/9: Analyse de réputation...")
         vt_results = self.reputation_analyzer.check_virustotal()
         malware_results = self.reputation_analyzer.check_malware_domains()
         phishtank_results = self.reputation_analyzer.check_phishtank()
@@ -651,16 +705,169 @@ class DomainAnalyzer:
             'virustotal': vt_results,
             'malware_check': malware_results,
             'phishtank': phishtank_results,
-            'certificate_transparency': ct_results
+            'certificate_transparency': ct_results,
+            'virustotal_link': self.virustotal_link()
         }
+        time.sleep(1)
         
-        # Calcul des scores avancés
+        # 8. Calcul des scores
+        print_info("\n🔄 Étape 8/9: Calcul des scores...")
+        results['analysis']['trust_score'] = self.calculate_trust_score(
+            results['analysis']['whois'],
+            results['analysis']['dns'],
+            results['analysis']['subdomains']
+        )
         results['analysis']['security_score'] = self.calculate_security_score(results['analysis']['security'])
         results['analysis']['reputation_score'] = self.reputation_analyzer.calculate_reputation_score(
             vt_results, malware_results, phishtank_results, ct_results
         )
+        time.sleep(1)
+        
+        # 9. Finalisation
+        print_info("\n🔄 Étape 9/9: Finalisation du rapport...")
+        time.sleep(1)
         
         return results
+    
+    def run_quick_analysis(self):
+        """Lance une analyse rapide (sans réputation)"""
+        results = {
+            'domain': self.domain,
+            'timestamp': datetime.now().isoformat(),
+            'analysis': {}
+        }
+        
+        print_info("🚀 Lancement de l'analyse rapide...")
+        print_info("=" * 60)
+        
+        # 1. WHOIS
+        print_info("🔄 Étape 1/5: Recherche WHOIS...")
+        results['analysis']['whois'] = self.whois_lookup()
+        time.sleep(0.5)
+        
+        # 2. DNS
+        print_info("\n🔄 Étape 2/5: Résolution DNS...")
+        results['analysis']['dns'] = self.dns_resolution()
+        time.sleep(0.5)
+        
+        # 3. Sous-domaines (limité)
+        print_info("\n🔄 Étape 3/5: Recherche de sous-domaines (rapide)...")
+        results['analysis']['subdomains'] = self.find_subdomains_quick()
+        time.sleep(0.5)
+        
+        # 4. Technologies web basiques
+        print_info("\n🔄 Étape 4/5: Analyse des technologies web...")
+        results['analysis']['web_technologies'] = self.web_analyzer.analyze_technologies()
+        time.sleep(0.5)
+        
+        # 5. Score de confiance
+        print_info("\n🔄 Étape 5/5: Calcul du score de confiance...")
+        results['analysis']['trust_score'] = self.calculate_trust_score(
+            results['analysis']['whois'],
+            results['analysis']['dns'],
+            results['analysis']['subdomains']
+        )
+        
+        # Lien VirusTotal seulement
+        results['analysis']['reputation'] = {
+            'virustotal_link': self.virustotal_link()
+        }
+        
+        return results
+    
+    def run_standard_analysis(self):
+        """Lance une analyse standard (sans géolocalisation avancée)"""
+        results = {
+            'domain': self.domain,
+            'timestamp': datetime.now().isoformat(),
+            'analysis': {}
+        }
+        
+        print_info("🚀 Lancement de l'analyse standard...")
+        print_info("=" * 60)
+        
+        # 1-3. Base
+        print_info("🔄 Étape 1/7: Recherche WHOIS...")
+        results['analysis']['whois'] = self.whois_lookup()
+        time.sleep(0.5)
+        
+        print_info("\n🔄 Étape 2/7: Résolution DNS...")
+        results['analysis']['dns'] = self.dns_resolution()
+        time.sleep(0.5)
+        
+        print_info("\n🔄 Étape 3/7: Recherche de sous-domaines...")
+        results['analysis']['subdomains'] = self.find_subdomains()
+        time.sleep(0.5)
+        
+        # 4. Technologies
+        print_info("\n🔄 Étape 4/7: Analyse des technologies web...")
+        results['analysis']['web_technologies'] = self.web_analyzer.analyze_technologies()
+        time.sleep(0.5)
+        
+        # 5. Sécurité
+        print_info("\n🔄 Étape 5/7: Analyse de sécurité...")
+        results['analysis']['security'] = {
+            'headers': self.web_analyzer.analyze_security_headers(),
+            'ssl': self.web_analyzer.analyze_ssl_certificate(),
+            'redirects': self.web_analyzer.analyze_redirects()
+        }
+        time.sleep(0.5)
+        
+        # 6. Réputation basique
+        print_info("\n🔄 Étape 6/7: Vérification réputation...")
+        vt_results = self.reputation_analyzer.check_virustotal()
+        results['analysis']['reputation'] = {
+            'virustotal': vt_results,
+            'virustotal_link': self.virustotal_link()
+        }
+        time.sleep(0.5)
+        
+        # 7. Scores
+        print_info("\n🔄 Étape 7/7: Calcul des scores...")
+        results['analysis']['trust_score'] = self.calculate_trust_score(
+            results['analysis']['whois'],
+            results['analysis']['dns'],
+            results['analysis']['subdomains']
+        )
+        results['analysis']['security_score'] = self.calculate_security_score(results['analysis']['security'])
+        
+        return results
+    
+    def find_subdomains_quick(self):
+        """Recherche rapide de sous-domaines (crt.sh seulement)"""
+        print_section("Extraction de sous-domaines (rapide)")
+        subdomains = set()
+        
+        # Recherche via crt.sh uniquement
+        try:
+            self.log_verbose("Recherche via crt.sh")
+            url = f"https://crt.sh/?q={self.domain}&output=json"
+            response = requests.get(url, timeout=10)  # Timeout réduit
+            
+            if response.status_code == 200:
+                data = response.json()
+                for entry in data[:100]:  # Limiter à 100 entrées
+                    name = entry['name_value']
+                    for subdomain in name.split('\n'):
+                        subdomain = subdomain.strip().lower()
+                        if subdomain.endswith(f'.{self.domain}') or subdomain == self.domain:
+                            subdomains.add(subdomain)
+                
+                print_success(f"✅ crt.sh: {len(subdomains)} sous-domaines trouvés")
+            else:
+                print_warning("⚠️  crt.sh: Aucune réponse")
+                
+        except Exception as e:
+            print_error(f"❌ Erreur crt.sh: {str(e)}")
+        
+        # Nettoyage
+        clean_subdomains = []
+        for sub in sorted(subdomains):
+            if sub and '.' in sub and not sub.startswith('*'):
+                clean_subdomains.append(sub)
+        
+        print_info(f"🎯 Total: {len(clean_subdomains)} sous-domaines")
+        return clean_subdomains[:50]  # Limiter à 50
     
     def calculate_security_score(self, security_data: Dict) -> Dict:
         """Calcule un score de sécurité"""
@@ -736,39 +943,127 @@ class DomainAnalyzer:
         print_info(f"🎯 Domaine analysé: {domain}")
         print_info(f"📅 Date d'analyse: {results['timestamp']}")
         
-        # Statistiques rapides
-        stats = []
+        print_section("INFORMATIONS GÉNÉRALES")
         
+        # Statistiques rapides
         if 'whois' in analysis and 'registrar' in analysis['whois']:
-            stats.append(f"Registrar: {analysis['whois']['registrar']}")
+            print_info(f"🏢 Registrar: {analysis['whois']['registrar']}")
+        
+        if 'whois' in analysis and 'creation_date' in analysis['whois']:
+            print_info(f"📅 Date de création: {analysis['whois']['creation_date']}")
         
         if 'dns' in analysis:
             dns_records = sum(1 for records in analysis['dns'].values() if isinstance(records, list) and records)
-            stats.append(f"Enregistrements DNS: {dns_records}")
+            print_info(f"🌐 Enregistrements DNS: {dns_records}")
         
         if 'subdomains' in analysis:
-            stats.append(f"Sous-domaines: {len(analysis['subdomains'])}")
+            print_info(f"🔍 Sous-domaines trouvés: {len(analysis['subdomains'])}")
         
-        if 'trust_score' in analysis:
-            score = analysis['trust_score']['score']
-            level = analysis['trust_score']['level']
-            stats.append(f"Score de confiance: {score}/100 ({level})")
-        
-        if 'security_score' in analysis:
-            score = analysis['security_score']['score']
-            level = analysis['security_score']['level']
-            stats.append(f"Score de sécurité: {score}/100 ({level})")
+        print_section("TECHNOLOGIES WEB")
         
         if 'web_technologies' in analysis:
-            tech_count = sum(len(techs) for techs in analysis['web_technologies'].values() if isinstance(techs, list))
-            stats.append(f"Technologies détectées: {tech_count}")
+            tech_data = analysis['web_technologies']
+            
+            if tech_data.get('frameworks'):
+                print_info(f"⚛️  Frameworks: {', '.join(tech_data['frameworks'])}")
+            
+            if tech_data.get('servers'):
+                print_info(f"🖥️  Serveurs: {', '.join(tech_data['servers'])}")
+            
+            if tech_data.get('cdn'):
+                print_info(f"🌐 CDN: {', '.join(tech_data['cdn'])}")
+            
+            if tech_data.get('analytics'):
+                print_info(f"📊 Analytics: {', '.join(tech_data['analytics'])}")
+        
+        print_section("SÉCURITÉ")
+        
+        if 'security' in analysis:
+            security = analysis['security']
+            
+            if 'ssl' in security and security['ssl'].get('valid'):
+                ssl_info = security['ssl']
+                issuer = ssl_info.get('issuer', {}).get('organizationName', 'Inconnu')
+                print_info(f"🔐 SSL: Certificat valide ({issuer})")
+            else:
+                print_info("🔐 SSL: Certificat invalide ou absent")
+            
+            if 'redirects' in security and security['redirects'].get('http_to_https'):
+                print_info("✅ HTTPS: Redirection active")
+            else:
+                print_info("❌ HTTPS: Pas de redirection")
+        
+        print_section("GÉOLOCALISATION")
         
         if 'geolocation' in analysis and 'countries' in analysis['geolocation']:
             countries = analysis['geolocation']['countries']
             if countries:
-                stats.append(f"Pays d'hébergement: {', '.join(countries[:3])}")
+                print_info(f"🌍 Pays d'hébergement: {', '.join(countries[:3])}")
         
-        for stat in stats:
+        if 'geolocation' in analysis and 'hosting_providers' in analysis['geolocation']:
+            providers = analysis['geolocation']['hosting_providers']
+            if providers:
+                unique_providers = list(set(providers))[:3]
+                print_info(f"🏢 Fournisseurs: {', '.join(unique_providers)}")
+        
+        print_section("SCORES D'ÉVALUATION")
+        
+        if 'trust_score' in analysis:
+            score = analysis['trust_score']['score']
+            level = analysis['trust_score']['level']
+            color = Fore.GREEN if score >= 80 else Fore.YELLOW if score >= 60 else Fore.RED
+            print(f"{color}🎯 Score de confiance: {score}/100 ({level}){Style.RESET_ALL}")
+        
+        if 'security_score' in analysis:
+            score = analysis['security_score']['score']
+            level = analysis['security_score']['level']
+            color = Fore.GREEN if score >= 80 else Fore.YELLOW if score >= 60 else Fore.RED
+            print(f"{color}🔒 Score de sécurité: {score}/100 ({level}){Style.RESET_ALL}")
+        
+        if 'reputation_score' in analysis:
+            score = analysis['reputation_score']['score']
+            level = analysis['reputation_score']['level']
+            color = Fore.GREEN if score >= 80 else Fore.YELLOW if score >= 60 else Fore.RED
+            print(f"{color}🛡️  Score de réputation: {score}/100 ({level}){Style.RESET_ALL}")
+        if 'reputation' in analysis:
+            rep = analysis['reputation']
+            
+            if 'virustotal' in rep and rep['virustotal'].get('scan_results'):
+                vt = rep['virustotal']['scan_results']
+                malicious = vt.get('malicious', 0)
+                if malicious > 0:
+                    print_info(f"⚠️  VirusTotal: {malicious} détections malveillantes")
+                else:
+                    print_info("✅ VirusTotal: Aucune détection malveillante")
+            
+            if 'malware_check' in rep and rep['malware_check'].get('blacklisted'):
+                sources = rep['malware_check'].get('sources', [])
+                print_info(f"❌ Blacklisté sur: {', '.join(sources)}")
+            else:
+                print_info("✅ Pas de blacklisting détecté")
+            
+            if 'virustotal_link' in rep:
+                print_info(f"🔗 VirusTotal: {rep['virustotal_link']}")
+        
+        print_section("RÉSUMÉ TECHNIQUE")
+        
+        # Statistiques techniques
+        tech_stats = []
+        
+        if 'web_technologies' in analysis:
+            tech_count = sum(len(techs) for techs in analysis['web_technologies'].values() if isinstance(techs, list))
+            tech_stats.append(f"Technologies détectées: {tech_count}")
+        
+        if 'security' in analysis and 'headers' in analysis['security']:
+            headers_present = sum(1 for h in analysis['security']['headers'].values() if h.get('present'))
+            tech_stats.append(f"Headers de sécurité: {headers_present}")
+        
+        if 'latency' in analysis and 'domain_latency' in analysis['latency']:
+            latency = analysis['latency']['domain_latency']
+            if 'avg' in latency:
+                tech_stats.append(f"Latence moyenne: {latency['avg']:.0f}ms")
+        
+        for stat in tech_stats:
             print_info(f"📊 {stat}")
     
     def export_results(self, results, filename, format_type='json'):
