@@ -1,2 +1,60 @@
-node_modules
+# NetTrace - Fichiers à ignorer
+
+# Cache et données temporaires
+cache/
+*.cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Rapports générés
+reports/*.json
+reports/*.html
+reports/*.csv
+reports/*.xml
+reports/*.txt
+!reports/.gitkeep
+
+# Logs
+logs/*.log
+logs/*.txt
+!logs/.gitkeep
+
+# Configuration locale
 .env
+config.local.py
+
+# Données sensibles
+*.key
+*.pem
+api_keys.txt
+
+# IDE et éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
