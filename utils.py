@@ -12,6 +12,15 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse
 import requests
 from colorama import init, Fore, Back, Style
+from typing import Dict, List, Optional, Any
+
+# Import des nouveaux modules
+from analyzers.web_analyzer import WebAnalyzer
+from analyzers.geo_analyzer import GeoAnalyzer
+from analyzers.reputation_analyzer import ReputationAnalyzer
+from analyzers.monitoring import MonitoringSystem
+from exporters.report_generator import ReportGenerator
+from core.cache import cache
 
 # Initialisation de colorama
 init(autoreset=True)
@@ -317,6 +326,12 @@ class DomainAnalyzer:
         self.domain = domain
         self.verbose = verbose
         self.results = {}
+        
+        # Initialiser les analyseurs spécialisés
+        self.web_analyzer = WebAnalyzer(domain, verbose)
+        self.geo_analyzer = GeoAnalyzer(domain, verbose)
+        self.reputation_analyzer = ReputationAnalyzer(domain, verbose)
+        self.report_generator = ReportGenerator(verbose)
         
     def log_verbose(self, message):
         """Log en mode verbeux"""
@@ -642,7 +657,112 @@ class DomainAnalyzer:
             results['analysis']['subdomains']
         )
         
+        # 6. Analyse des technologies web
+        print_info("\n🔄 Étape 6/9: Analyse des technologies web...")
+        results['analysis']['web_technologies'] = self.web_analyzer.analyze_technologies()
+        time.sleep(1)
+        
+        # 7. Analyse de sécurité
+        print_info("\n🔄 Étape 7/9: Analyse de sécurité...")
+        results['analysis']['security'] = {
+            'headers': self.web_analyzer.analyze_security_headers(),
+            'ssl': self.web_analyzer.analyze_ssl_certificate(),
+            'common_files': self.web_analyzer.check_common_files(),
+            'redirects': self.web_analyzer.analyze_redirects()
+        }
+        time.sleep(1)
+        
+        # 8. Analyse géographique
+        print_info("\n🔄 Étape 8/9: Analyse géographique...")
+        results['analysis']['geolocation'] = self.geo_analyzer.analyze_hosting_infrastructure()
+        results['analysis']['latency'] = self.geo_analyzer.analyze_latency()
+        time.sleep(1)
+        
+        # 9. Analyse de réputation
+        print_info("\n🔄 Étape 9/9: Analyse de réputation...")
+        vt_results = self.reputation_analyzer.check_virustotal()
+        malware_results = self.reputation_analyzer.check_malware_domains()
+        phishtank_results = self.reputation_analyzer.check_phishtank()
+        ct_results = self.reputation_analyzer.check_certificate_transparency()
+        
+        results['analysis']['reputation'] = {
+            'virustotal': vt_results,
+            'malware_check': malware_results,
+            'phishtank': phishtank_results,
+            'certificate_transparency': ct_results
+        }
+        
+        # Calcul des scores avancés
+        results['analysis']['security_score'] = self.calculate_security_score(results['analysis']['security'])
+        results['analysis']['reputation_score'] = self.reputation_analyzer.calculate_reputation_score(
+            vt_results, malware_results, phishtank_results, ct_results
+        )
+        
         return results
+    
+    def calculate_security_score(self, security_data: Dict) -> Dict:
+        """Calcule un score de sécurité"""
+        print_section("Score de sécurité")
+        score = 0
+        details = []
+        max_score = 100
+        
+        # Headers de sécurité (40 points max)
+        if 'headers' in security_data and 'score' in security_data['headers']:
+            header_score = security_data['headers']['score']
+            max_header_score = security_data['headers']['max_score']
+            normalized_score = int((header_score / max_header_score) * 40) if max_header_score > 0 else 0
+            score += normalized_score
+            details.append(f"🔒 Headers de sécurité: +{normalized_score} pts")
+        
+        # Certificat SSL (30 points max)
+        if 'ssl' in security_data and 'score' in security_data['ssl']:
+            ssl_score = min(security_data['ssl']['score'], 30)
+            score += ssl_score
+            details.append(f"🔐 Certificat SSL: +{ssl_score} pts")
+        
+        # Redirections HTTPS (15 points)
+        if 'redirects' in security_data:
+            redirects = security_data['redirects']
+            if redirects.get('http_to_https'):
+                score += 15
+                details.append("🔄 Redirection HTTPS: +15 pts")
+            else:
+                details.append("🔄 Pas de redirection HTTPS: +0 pts")
+        
+        # Fichiers de sécurité (15 points max)
+        if 'common_files' in security_data:
+            files = security_data['common_files']
+            security_files = ['robots.txt', 'security.txt']
+            found_files = sum(1 for f in security_files if files.get(f, {}).get('exists', False))
+            file_score = found_files * 7  # 7 points par fichier
+            score += file_score
+            details.append(f"📄 Fichiers de sécurité: +{file_score} pts")
+        
+        # Déterminer le niveau
+        if score >= 80:
+            level = "EXCELLENT"
+            color = Fore.GREEN
+        elif score >= 60:
+            level = "BON"
+            color = Fore.YELLOW
+        elif score >= 40:
+            level = "MOYEN"
+            color = Fore.YELLOW
+        else:
+            level = "FAIBLE"
+            color = Fore.RED
+        
+        print(f"{color}{Style.BRIGHT}🔒 Score de sécurité: {score}/100 ({level}){Style.RESET_ALL}")
+        print_info("\n📊 Détails du scoring:")
+        for detail in details:
+            print_info(f"   {detail}")
+        
+        return {
+            'score': score,
+            'level': level,
+            'details': details
+        }
     
     def display_results(self, results):
         """Affiche un résumé des résultats"""
@@ -672,6 +792,20 @@ class DomainAnalyzer:
             level = analysis['trust_score']['level']
             stats.append(f"Score de confiance: {score}/100 ({level})")
         
+        if 'security_score' in analysis:
+            score = analysis['security_score']['score']
+            level = analysis['security_score']['level']
+            stats.append(f"Score de sécurité: {score}/100 ({level})")
+        
+        if 'web_technologies' in analysis:
+            tech_count = sum(len(techs) for techs in analysis['web_technologies'].values() if isinstance(techs, list))
+            stats.append(f"Technologies détectées: {tech_count}")
+        
+        if 'geolocation' in analysis and 'countries' in analysis['geolocation']:
+            countries = analysis['geolocation']['countries']
+            if countries:
+                stats.append(f"Pays d'hébergement: {', '.join(countries[:3])}")
+        
         for stat in stats:
             print_info(f"📊 {stat}")
     
@@ -679,66 +813,30 @@ class DomainAnalyzer:
         """Exporte les résultats"""
         try:
             if format_type == 'json':
-                with open(filename, 'w', encoding='utf-8') as f:
-                    json.dump(results, f, indent=2, ensure_ascii=False)
+                success = self.report_generator.generate_json_report(results, filename)
+                if success:
+                    print_success(f"✅ Rapport JSON sauvegardé: {filename}")
+                return success
             
             elif format_type == 'txt':
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write("=" * 60 + "\n")
-                    f.write("NETTRACE - RAPPORT D'ANALYSE OSINT\n")
-                    f.write("=" * 60 + "\n\n")
-                    
-                    f.write(f"Domaine: {results['domain']}\n")
-                    f.write(f"Date: {results['timestamp']}\n\n")
-                    
-                    analysis = results['analysis']
-                    
-                    # WHOIS
-                    if 'whois' in analysis:
-                        f.write("WHOIS INFORMATION\n")
-                        f.write("-" * 20 + "\n")
-                        whois = analysis['whois']
-                        for key, value in whois.items():
-                            if key != 'error':
-                                f.write(f"{key.replace('_', ' ').title()}: {value}\n")
-                        f.write("\n")
-                    
-                    # DNS
-                    if 'dns' in analysis:
-                        f.write("ENREGISTREMENTS DNS\n")
-                        f.write("-" * 20 + "\n")
-                        for record_type, records in analysis['dns'].items():
-                            if isinstance(records, list) and records:
-                                f.write(f"{record_type}: {', '.join(records)}\n")
-                        f.write("\n")
-                    
-                    # Sous-domaines
-                    if 'subdomains' in analysis:
-                        f.write("SOUS-DOMAINES\n")
-                        f.write("-" * 20 + "\n")
-                        f.write(f"Total: {len(analysis['subdomains'])}\n")
-                        for subdomain in analysis['subdomains'][:20]:
-                            f.write(f"• {subdomain}\n")
-                        if len(analysis['subdomains']) > 20:
-                            f.write(f"... et {len(analysis['subdomains'])-20} autres\n")
-                        f.write("\n")
-                    
-                    # Score de confiance
-                    if 'trust_score' in analysis:
-                        f.write("SCORE DE CONFIANCE\n")
-                        f.write("-" * 20 + "\n")
-                        trust = analysis['trust_score']
-                        f.write(f"Score: {trust['score']}/100 ({trust['level']})\n")
-                        f.write("Détails:\n")
-                        for detail in trust['details']:
-                            f.write(f"  {detail}\n")
-                        f.write("\n")
-                    
-                    # VirusTotal
-                    if 'virustotal_link' in analysis:
-                        f.write("VIRUSTOTAL\n")
-                        f.write("-" * 20 + "\n")
-                        f.write(f"Lien: {analysis['virustotal_link']}\n")
+                # Générer un rapport HTML plus complet pour le format "txt"
+                html_filename = filename.replace('.txt', '.html')
+                success = self.report_generator.generate_html_report(results, html_filename)
+                if success:
+                    print_success(f"✅ Rapport HTML sauvegardé: {html_filename}")
+                return success
+            
+            elif format_type == 'csv':
+                success = self.report_generator.generate_csv_report(results, filename)
+                if success:
+                    print_success(f"✅ Rapport CSV sauvegardé: {filename}")
+                return success
+            
+            elif format_type == 'xml':
+                success = self.report_generator.generate_xml_report(results, filename)
+                if success:
+                    print_success(f"✅ Rapport XML sauvegardé: {filename}")
+                return success
             
             return True
         except Exception as e:
