@@ -12,8 +12,9 @@ import json
 import sys
 import time
 from datetime import datetime
-from utils import (DomainAnalyzer, print_banner, print_section, print_success, 
-                   print_error, print_warning, print_info, show_interactive_menu)
+from utils import DomainAnalyzer, show_interactive_menu
+from core.display import (print_banner, print_section, print_success, 
+                         print_error, print_warning, print_info)
 from config.settings import REPORTS_DIR
 from core.cache import cache
 
