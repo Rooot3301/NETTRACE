@@ -48,6 +48,11 @@ def print_error(text):
 def print_warning(text):
     """Affiche un message d'avertissement"""
     print(f"{Fore.YELLOW}{text}{Style.RESET_ALL}")
+
+def print_info(text):
+    """Affiche un message d'information"""
+    print(f"{Fore.CYAN}{text}{Style.RESET_ALL}")
+
 def show_interactive_menu():
     """Affiche le menu interactif principal"""
     while True:
@@ -90,6 +95,8 @@ def show_interactive_menu():
 
 def handle_single_analysis():
     """Gère l'analyse simple d'un domaine"""
+    from nettrace import run_analysis
+    
     print_section("Analyse simple")
     domain = input(f"{Fore.GREEN}Entrez le domaine à analyser: {Style.RESET_ALL}").strip()
     
@@ -103,9 +110,11 @@ def handle_single_analysis():
     run_analysis(domain, verbose=verbose)
     
     input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
-def print_info(text):
+
 def handle_report_generation():
     """Gère la génération de rapport automatique"""
+    from nettrace import run_analysis
+    
     print_section("Génération de rapport")
     domain = input(f"{Fore.GREEN}Entrez le domaine à analyser: {Style.RESET_ALL}").strip()
     
@@ -151,9 +160,11 @@ def handle_report_generation():
         return
     
     input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
-    """Affiche un message d'information"""
+
 def handle_batch_analysis():
     """Gère l'analyse en lot de plusieurs domaines"""
+    from nettrace import run_analysis
+    
     print_section("Analyse en lot")
     
     print_info("Options d'entrée:")
@@ -222,7 +233,7 @@ def handle_batch_analysis():
     
     print_info(f"\n📊 Résultats: {success_count}/{len(domains)} analyses réussies")
     input(f"\n{Fore.CYAN}Appuyez sur Entrée pour continuer...{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}{text}{Style.RESET_ALL}")
+
 def handle_system_config():
     """Affiche la configuration système"""
     print_section("Configuration système")
