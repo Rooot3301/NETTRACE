@@ -1,0 +1,8 @@
+# Exemple de fichier pour analyse en lot
+# Lignes commençant par # sont ignorées
+
+google.com
+facebook.com
+github.com
+stackoverflow.com
+reddit.com

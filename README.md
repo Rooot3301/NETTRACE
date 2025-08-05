@@ -14,11 +14,19 @@
 - **WHOIS Lookup** : Informations sur le registrar, dates de création/expiration, propriétaire
 - **Résolution DNS** : Enregistrements A, AAAA, MX, TXT, NS, CNAME
 - **Extraction de sous-domaines** : Via crt.sh, subfinder, amass (passif uniquement)
-- **Lien VirusTotal** : Génération automatique du lien d'analyse
+- **Analyse des technologies web** : Détection de frameworks, serveurs, CDN, CMS
+- **Analyse de sécurité** : Headers de sécurité, certificats SSL, redirections HTTPS
+- **Géolocalisation** : Localisation des serveurs, analyse de latence
+- **Réputation** : VirusTotal, listes de malware, Certificate Transparency
 - **Score de confiance** : Calcul intelligent basé sur plusieurs critères (0-100)
+- **Score de sécurité** : Évaluation de la posture de sécurité (0-100)
 
 ### 📊 Fonctionnalités avancées
-- **Export multi-format** : Sauvegarde en JSON ou TXT
+- **Export multi-format** : JSON, HTML, CSV, XML
+- **Cache intelligent** : Évite les requêtes répétitives avec TTL configurable
+- **Analyse en lot** : Traitement de plusieurs domaines depuis un fichier
+- **Monitoring continu** : Surveillance des changements avec alertes
+- **Rapports comparatifs** : Analyse comparative de plusieurs domaines
 - **Interface colorée** : Affichage clair avec codes couleur
 - **Mode verbeux** : Débogage détaillé des opérations
 - **Gestion d'erreurs** : Fallbacks intelligents en cas d'échec
@@ -68,6 +76,15 @@ python nettrace.py --domain example.com --output rapport.json
 # Avec export TXT
 python nettrace.py --domain test.com --format txt --output rapport.txt
 
+# Avec export HTML (recommandé pour visualisation)
+python nettrace.py --domain example.com --format html --output rapport.html
+
+# Analyse en lot depuis un fichier
+python nettrace.py --batch-file domains.txt --format json
+
+# Vider le cache avant analyse
+python nettrace.py --domain site.com --clear-cache
+
 # Mode verbeux pour débogage
 python nettrace.py --domain site.com --verbose
 ```
@@ -78,9 +95,11 @@ python nettrace.py --domain site.com --verbose
 |--------|-------------|---------|
 | `--domain, -d` | Domaine à analyser (requis) | `-d google.com` |
 | `--output, -o` | Fichier de sortie | `-o rapport.json` |
-| `--format, -f` | Format d'export (json/txt) | `-f txt` |
+| `--format, -f` | Format d'export (json/txt/html/csv/xml) | `-f html` |
 | `--verbose, -v` | Mode verbeux | `-v` |
 | `--interactive, -i` | Mode interactif avec menu | `-i` |
+| `--clear-cache` | Vider le cache | `--clear-cache` |
+| `--batch-file` | Fichier de domaines pour analyse en lot | `--batch-file domains.txt` |
 
 ### Exemples d'usage
 
@@ -91,11 +110,18 @@ python nettrace.py -i
 # Analyse complète avec export
 python nettrace.py -d facebook.com -o facebook_analysis.json -v
 
+# Rapport HTML complet
+python nettrace.py -d github.com -f html -o github_report.html
+
+# Analyse en lot avec export CSV
+echo -e "google.com\nfacebook.com\ngithub.com" > domains.txt
+python nettrace.py --batch-file domains.txt -f csv
+
 # Analyse rapide sans export
 python nettrace.py -d github.com
 
-# Export en format texte
-python nettrace.py -d stackoverflow.com -f txt -o report.txt
+# Vider le cache et analyser
+python nettrace.py -d stackoverflow.com --clear-cache -v
 ```
 
 ## 🎮 Mode interactif
@@ -109,9 +135,11 @@ NetTrace propose un mode interactif avec menu pour une utilisation plus convivia
 ║  1. 🎯 Analyser un domaine                               ║
 ║  2. 📊 Analyser avec rapport automatique                ║
 ║  3. 📁 Analyser plusieurs domaines (batch)              ║
-║  4. ⚙️  Configuration et outils                         ║
-║  5. 📖 Aide et exemples                                 ║
-║  6. 🚪 Quitter                                          ║
+║  4. 📈 Monitoring et alertes                            ║
+║  5. 🗂️  Gestion du cache                                ║
+║  6. ⚙️  Configuration et outils                         ║
+║  7. 📖 Aide et exemples                                 ║
+║  8. 🚪 Quitter                                          ║
 ╚══════════════════════════════════════════════════════════╝
 ```
 
@@ -120,6 +148,8 @@ NetTrace propose un mode interactif avec menu pour une utilisation plus convivia
 - **Analyse simple** : Analyse rapide d'un domaine
 - **Rapport automatique** : Génération automatique de fichiers de rapport avec timestamp
 - **Analyse en lot** : Traitement de plusieurs domaines (saisie manuelle ou fichier)
+- **Monitoring** : Surveillance continue avec détection de changements
+- **Gestion du cache** : Visualisation et nettoyage du cache
 - **Configuration** : Vérification des dépendances et outils installés
 - **Aide intégrée** : Exemples et documentation directement dans l'outil
 
@@ -137,6 +167,15 @@ NetTrace calcule un score de confiance sur 100 points basé sur :
 | **Informations WHOIS** | 15 pts | Registrar (5), Propriétaire (5), Statut (5) |
 | **Stabilité** | 10 pts | Score basé sur la cohérence des données |
 
+### Score de sécurité
+
+| Critère | Points max | Description |
+|---------|------------|-------------|
+| **Headers de sécurité** | 40 pts | HSTS, CSP, X-Frame-Options, etc. |
+| **Certificat SSL** | 30 pts | Validité, autorité, protocole TLS |
+| **Redirection HTTPS** | 15 pts | Redirection automatique HTTP vers HTTPS |
+| **Fichiers de sécurité** | 15 pts | robots.txt, security.txt présents |
+
 ### Interprétation des scores
 
 - **80-100** : 🟢 **ÉLEVÉ** - Domaine établi et fiable
@@ -147,13 +186,27 @@ NetTrace calcule un score de confiance sur 100 points basé sur :
 
 ```
 nettrace/
+├── config/
+│   └── settings.py         # Configuration globale
+├── core/
+│   ├── __init__.py
+│   └── cache.py           # Système de cache intelligent
+├── analyzers/
+│   ├── __init__.py
+│   ├── web_analyzer.py    # Analyse technologies web et sécurité
+│   ├── geo_analyzer.py    # Géolocalisation et infrastructure
+│   ├── reputation_analyzer.py # Réputation et malware
+│   └── monitoring.py      # Système de monitoring
+├── exporters/
+│   ├── __init__.py
+│   └── report_generator.py # Génération rapports multi-formats
+├── cache/                 # Dossier cache (créé automatiquement)
+├── reports/              # Rapports générés (créé automatiquement)
+├── logs/                 # Logs système (créé automatiquement)
 ├── nettrace.py          # Script principal
 ├── utils.py             # Fonctions utilitaires et classes
 ├── requirements.txt     # Dépendances Python
-├── README.md           # Documentation
-└── examples/           # Exemples de rapports
-    ├── google.json
-    └── example.txt
+└── README.md           # Documentation
 ```
 
 ## 📋 Exemple de sortie
@@ -181,7 +234,28 @@ By: Assistant IA | Version: 1.0
 🔍 TXT: v=spf1 include:_spf.google.com ~all
 🔍 NS: ns1.google.com, ns2.google.com
 
+💻 TECHNOLOGIES WEB
+────────────────────
+🖥️  Serveur: Apache/2.4.41
+🌐 CDN: Cloudflare
+📊 Analytics: Google Analytics, Google Tag Manager
+⚛️  Framework: React
+
+🔒 ANALYSE DE SÉCURITÉ
+──────────────────────
+✅ HTTPS: Redirection active
+🔐 SSL: Certificat valide (Let's Encrypt)
+🛡️  Headers: HSTS, CSP présents
+
+🌍 GÉOLOCALISATION
+──────────────────
+🇺🇸 Pays: États-Unis
+🏢 Organisation: Google LLC
+⚡ Latence: 45ms (moyenne)
+
 🎯 Score de confiance: 95/100 (ÉLEVÉ)
+🔒 Score de sécurité: 88/100 (EXCELLENT)
+🛡️  Score de réputation: 92/100 (EXCELLENT)
 ```
 
 ## ❓ Dépannage
@@ -201,6 +275,20 @@ pip install python-whois dnspython requests colorama python-dateutil
 **Erreur WHOIS**
 - Certains TLD ne sont pas supportés par python-whois
 - Vérifiez que le domaine existe et est valide
+
+**Erreurs de cache**
+```bash
+# Vider le cache en cas de problème
+python nettrace.py --clear-cache
+
+# Ou supprimer manuellement
+rm -rf cache/*
+```
+
+**Timeouts fréquents**
+- Ajustez les timeouts dans config/settings.py
+- Vérifiez votre connexion internet
+- Utilisez le mode verbeux pour diagnostiquer
 
 **Timeout sur les sous-domaines**
 - Utilisez le mode verbeux (`-v`) pour voir les détails
@@ -246,7 +334,14 @@ Les contributions sont les bienvenues ! Voici comment contribuer :
 - ✅ Extraction de sous-domaines via crt.sh
 - ✅ Support subfinder/amass
 - ✅ Score de confiance intelligent
-- ✅ Export JSON/TXT
+- ✅ Analyse des technologies web
+- ✅ Analyse de sécurité avancée
+- ✅ Géolocalisation et infrastructure
+- ✅ Analyse de réputation
+- ✅ Système de cache intelligent
+- ✅ Export multi-formats (JSON/HTML/CSV/XML)
+- ✅ Analyse en lot
+- ✅ Monitoring et alertes
 - ✅ Interface CLI colorée
 
 ## 📄 Licence
