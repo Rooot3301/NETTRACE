@@ -265,7 +265,7 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 
 - 🐛 **Issues** : [GitHub Issues](https://github.com/votre-username/nettrace/issues)
 - 💬 **Discussions** : [GitHub Discussions](https://github.com/votre-username/nettrace/discussions)
-- 📧 **Email** : votre-email@example.com
+- 📧 **Email** : contact@root3301.fr
 
 ---
 
@@ -273,6 +273,6 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 
 **⭐ Si ce projet vous aide, n'hésitez pas à lui donner une étoile ! ⭐**
 
-Made with ❤️ by [Votre Nom](https://github.com/votre-username)
+Made with ❤️ by [Root3301](https://github.com/Rooot3301)
 
 </div>
