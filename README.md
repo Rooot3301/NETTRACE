@@ -1,373 +1,222 @@
-# 🔍 NetTrace - Outil OSINT d'analyse de domaines
+# NetTrace v2 — Advanced OSINT Domain Analysis Tool
 
-[![Python](https://img.shields.io/badge/Python-3.7+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![OSINT](https://img.shields.io/badge/OSINT-Tool-red.svg)](https://github.com)
+```
+  _   _      _   _____
+ | \ | | ___| |_|_   _| __ __ _  ___ ___
+ |  \| |/ _ \ __| | || '__/ _` |/ __/ _ \
+ | |\  |  __/ |_  | || | | (_| | (_|  __/
+ |_| \_|\___|\__| |_||_|  \__,_|\___\___|
+```
 
-**NetTrace** est un outil complet d'OSINT (Open Source Intelligence) pour l'analyse de domaines, développé en Python pur sans dépendance à des APIs payantes. Il permet d'effectuer une reconnaissance passive approfondie sur n'importe quel domaine.
+> Reconnaissance passive complète de domaines — **zéro clé API requise**
 
-![NetTrace Demo](https://via.placeholder.com/800x400/1a1a1a/00ff00?text=NetTrace+OSINT+Tool)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-2.0-orange)](https://github.com/Rooot3301/NETTRACE)
 
-## 🚀 Fonctionnalités
+**NetTrace v2** est un outil OSINT et de pentest de domaines entièrement réécrit. Il agrège **12 sources d'analyse distinctes** dans une interface terminal moderne (powered by `rich`), exporte en 4 formats et ne nécessite **aucune clé API payante**.
 
-### 🔎 Analyse complète
-- **WHOIS Lookup** : Informations sur le registrar, dates de création/expiration, propriétaire
-- **Résolution DNS** : Enregistrements A, AAAA, MX, TXT, NS, CNAME
-- **Extraction de sous-domaines** : Via crt.sh, subfinder, amass (passif uniquement)
-- **Analyse des technologies web** : Détection de frameworks, serveurs, CDN, CMS
-- **Analyse de sécurité** : Headers de sécurité, certificats SSL, redirections HTTPS
-- **Géolocalisation** : Localisation des serveurs, analyse de latence
-- **Réputation** : VirusTotal, listes de malware, Certificate Transparency
-- **Score de confiance** : Calcul intelligent basé sur plusieurs critères (0-100)
-- **Score de sécurité** : Évaluation de la posture de sécurité (0-100)
+## Fonctionnalités
 
-### 📊 Fonctionnalités avancées
-- **Export multi-format** : JSON, HTML, CSV, XML
-- **Cache intelligent** : Évite les requêtes répétitives avec TTL configurable
-- **Analyse en lot** : Traitement de plusieurs domaines depuis un fichier
-- **Monitoring continu** : Surveillance des changements avec alertes
-- **Rapports comparatifs** : Analyse comparative de plusieurs domaines
-- **Interface colorée** : Affichage clair avec codes couleur
-- **Mode verbeux** : Débogage détaillé des opérations
-- **Gestion d'erreurs** : Fallbacks intelligents en cas d'échec
-- **Architecture modulaire** : Code propre et extensible
+### Reconnaissance passive
+| Module | Détail |
+|--------|--------|
+| **WHOIS** | Registrar, dates création/expiration, âge du domaine, statuts |
+| **DNS complet** | A, AAAA, MX, TXT, NS, CNAME, SOA + détection DNSSEC |
+| **Zone Transfer (AXFR)** | Test de transfert de zone sur tous les NS découverts |
+| **Sous-domaines** | crt.sh (cert transparency) + subfinder + amass (optionnels) |
+| **Subdomain Takeover** | Détection CNAME orphelins (28 services : GitHub Pages, Heroku, S3, Netlify…) |
+| **GeoIP & ASN** | Localisation de chaque IP, ASN, organisation, détection CDN |
+| **HTTP/TLS** | Headers de sécurité, info certificat TLS, technologies détectées |
+| **WAF/CDN Detection** | Fingerprinting Cloudflare, Akamai, Imperva, F5, Sucuri… |
+| **Sécurité Email** | SPF, DMARC, DKIM (18 sélecteurs testés), BIMI, MTA-STS |
+| **Wayback Machine** | Première apparition, snapshots, URLs sensibles archivées |
+| **Google Dorks** | 50+ dorks générés en 8 catégories, prêts à copier |
+| **Score de risque** | Score unifié 0-100 avec 7 facteurs pondérés + recommandations |
 
-## 📦 Installation
+### Pentest actif (opt-in)
+| Module | Détail |
+|--------|--------|
+| **Port Scan** | 20 ports communs via socket (flag `--active` requis) |
 
-### Prérequis
-- Python 3.7 ou supérieur
-- pip (gestionnaire de paquets Python)
+### Interface & exports
+- Terminal **rich** : tableaux, panneaux colorés, barres de progression, spinners
+- Export **JSON** (structuré, machine-readable)
+- Export **HTML** (rapport standalone dark theme, offline)
+- Export **TXT** (rapport lisible)
+- Export **CSV** (une ligne par domaine, pour analyse batch/SIEM)
+- Mode **comparaison** (`--compare domain1 domain2`)
+- Mode **batch** (fichier de domaines)
+- **Cache local** 24h (`~/.nettrace/cache/`)
 
-### Installation rapide
+## Installation
+
 ```bash
-# Cloner le repository
-git clone https://github.com/votre-username/nettrace.git
-cd nettrace
-
-# Installer les dépendances
+git clone https://github.com/Rooot3301/NETTRACE.git
+cd NETTRACE
 pip install -r requirements.txt
 ```
 
-### Installation des outils externes (optionnel)
-Pour maximiser la découverte de sous-domaines :
-
+### Outils optionnels (plus de sous-domaines)
 ```bash
-# Subfinder (Go requis)
+# subfinder
 go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 
-# Amass (Go requis)
-go install -v github.com/OWASP/Amass/v3/...@master
+# amass
+go install -v github.com/owasp-amass/amass/v4/...@master
 ```
 
-## 🎯 Usage
+## Usage
 
-### Commandes de base
-
+### Mode interactif (par défaut)
 ```bash
-# Mode interactif (recommandé)
-python nettrace.py --interactive
-
-# Analyse simple
-python nettrace.py --domain google.com
-
-# Avec export JSON
-python nettrace.py --domain example.com --output rapport.json
-
-# Avec export TXT
-python nettrace.py --domain test.com --format txt --output rapport.txt
-
-# Avec export HTML (recommandé pour visualisation)
-python nettrace.py --domain example.com --format html --output rapport.html
-
-# Analyse en lot depuis un fichier
-python nettrace.py --batch-file domains.txt --format json
-
-# Vider le cache avant analyse
-python nettrace.py --domain site.com --clear-cache
-
-# Mode verbeux pour débogage
-python nettrace.py --domain site.com --verbose
-```
-
-### Options disponibles
-
-| Option | Description | Exemple |
-|--------|-------------|---------|
-| `--domain, -d` | Domaine à analyser (requis) | `-d google.com` |
-| `--output, -o` | Fichier de sortie | `-o rapport.json` |
-| `--format, -f` | Format d'export (json/txt/html/csv/xml) | `-f html` |
-| `--verbose, -v` | Mode verbeux | `-v` |
-| `--interactive, -i` | Mode interactif avec menu | `-i` |
-| `--clear-cache` | Vider le cache | `--clear-cache` |
-| `--batch-file` | Fichier de domaines pour analyse en lot | `--batch-file domains.txt` |
-
-### Exemples d'usage
-
-```bash
-# Mode interactif complet
+python nettrace.py
 python nettrace.py -i
-
-# Analyse complète avec export
-python nettrace.py -d facebook.com -o facebook_analysis.json -v
-
-# Rapport HTML complet
-python nettrace.py -d github.com -f html -o github_report.html
-
-# Analyse en lot avec export CSV
-echo -e "google.com\nfacebook.com\ngithub.com" > domains.txt
-python nettrace.py --batch-file domains.txt -f csv
-
-# Analyse rapide sans export
-python nettrace.py -d github.com
-
-# Vider le cache et analyser
-python nettrace.py -d stackoverflow.com --clear-cache -v
 ```
 
-## 🎮 Mode interactif
-
-NetTrace propose un mode interactif avec menu pour une utilisation plus conviviale :
-
-```
-╔══════════════════════════════════════════════════════════╗
-║                    🔍 NETTRACE MENU                     ║
-╠══════════════════════════════════════════════════════════╣
-║  1. 🎯 Analyser un domaine                               ║
-║  2. 📊 Analyser avec rapport automatique                ║
-║  3. 📁 Analyser plusieurs domaines (batch)              ║
-║  4. 📈 Monitoring et alertes                            ║
-║  5. 🗂️  Gestion du cache                                ║
-║  6. ⚙️  Configuration et outils                         ║
-║  7. 📖 Aide et exemples                                 ║
-║  8. 🚪 Quitter                                          ║
-╚══════════════════════════════════════════════════════════╝
-```
-
-### Fonctionnalités du menu
-
-- **Analyse simple** : Analyse rapide d'un domaine
-- **Rapport automatique** : Génération automatique de fichiers de rapport avec timestamp
-- **Analyse en lot** : Traitement de plusieurs domaines (saisie manuelle ou fichier)
-- **Monitoring** : Surveillance continue avec détection de changements
-- **Gestion du cache** : Visualisation et nettoyage du cache
-- **Configuration** : Vérification des dépendances et outils installés
-- **Aide intégrée** : Exemples et documentation directement dans l'outil
-
-## 📊 Score de confiance
-
-NetTrace calcule un score de confiance sur 100 points basé sur :
-
-### Critères de scoring
-
-| Critère | Points max | Description |
-|---------|------------|-------------|
-| **Ancienneté du domaine** | 30 pts | 10+ ans (30), 3-10 ans (20), 1-3 ans (10), <1 an (0) |
-| **Enregistrements DNS** | 25 pts | A/MX/NS requis (8 pts chacun), AAAA/TXT optionnels (4 pts) |
-| **Sous-domaines** | 20 pts | 50+ (20), 20-49 (15), 5-19 (10), 1-4 (5) |
-| **Informations WHOIS** | 15 pts | Registrar (5), Propriétaire (5), Statut (5) |
-| **Stabilité** | 10 pts | Score basé sur la cohérence des données |
-
-### Score de sécurité
-
-| Critère | Points max | Description |
-|---------|------------|-------------|
-| **Headers de sécurité** | 40 pts | HSTS, CSP, X-Frame-Options, etc. |
-| **Certificat SSL** | 30 pts | Validité, autorité, protocole TLS |
-| **Redirection HTTPS** | 15 pts | Redirection automatique HTTP vers HTTPS |
-| **Fichiers de sécurité** | 15 pts | robots.txt, security.txt présents |
-
-### Interprétation des scores
-
-- **80-100** : 🟢 **ÉLEVÉ** - Domaine établi et fiable
-- **60-79** : 🟡 **MOYEN** - Domaine standard avec quelques lacunes
-- **0-59** : 🔴 **FAIBLE** - Domaine récent ou suspect
-
-## 🛠️ Structure du projet
-
-```
-nettrace/
-├── config/
-│   └── settings.py         # Configuration globale
-├── core/
-│   ├── __init__.py
-│   └── cache.py           # Système de cache intelligent
-├── analyzers/
-│   ├── __init__.py
-│   ├── web_analyzer.py    # Analyse technologies web et sécurité
-│   ├── geo_analyzer.py    # Géolocalisation et infrastructure
-│   ├── reputation_analyzer.py # Réputation et malware
-│   └── monitoring.py      # Système de monitoring
-├── exporters/
-│   ├── __init__.py
-│   └── report_generator.py # Génération rapports multi-formats
-├── cache/                 # Dossier cache (créé automatiquement)
-├── reports/              # Rapports générés (créé automatiquement)
-├── logs/                 # Logs système (créé automatiquement)
-├── nettrace.py          # Script principal
-├── utils.py             # Fonctions utilitaires et classes
-├── requirements.txt     # Dépendances Python
-└── README.md           # Documentation
-```
-
-## 📋 Exemple de sortie
-
-```
-🔍 NETTRACE - OUTIL OSINT D'ANALYSE DE DOMAINES
-By: Assistant IA | Version: 1.0
-
-🎯 Analyse du domaine: google.com
-============================================================
-
-📋 WHOIS LOOKUP
-────────────────
-🏢 Registrar: MarkMonitor Inc.
-📅 Date de création: 1997-09-15 04:00:00
-⏰ Date d'expiration: 2028-09-14 04:00:00
-👤 Propriétaire: Google LLC
-📊 Statut: clientDeleteProhibited
-
-📋 RÉSOLUTION DNS
-──────────────────
-🔍 A: 142.250.185.78
-🔍 AAAA: 2a00:1450:4007:80c::200e
-🔍 MX: 10 smtp.google.com
-🔍 TXT: v=spf1 include:_spf.google.com ~all
-🔍 NS: ns1.google.com, ns2.google.com
-
-💻 TECHNOLOGIES WEB
-────────────────────
-🖥️  Serveur: Apache/2.4.41
-🌐 CDN: Cloudflare
-📊 Analytics: Google Analytics, Google Tag Manager
-⚛️  Framework: React
-
-🔒 ANALYSE DE SÉCURITÉ
-──────────────────────
-✅ HTTPS: Redirection active
-🔐 SSL: Certificat valide (Let's Encrypt)
-🛡️  Headers: HSTS, CSP présents
-
-🌍 GÉOLOCALISATION
-──────────────────
-🇺🇸 Pays: États-Unis
-🏢 Organisation: Google LLC
-⚡ Latence: 45ms (moyenne)
-
-🎯 Score de confiance: 95/100 (ÉLEVÉ)
-🔒 Score de sécurité: 88/100 (EXCELLENT)
-🛡️  Score de réputation: 92/100 (EXCELLENT)
-```
-
-## ❓ Dépannage
-
-### Problèmes courants
-
-**Module manquant**
+### Analyse directe
 ```bash
-pip install python-whois dnspython requests colorama python-dateutil
+python nettrace.py -d example.com
+python nettrace.py -d example.com -o report.html -f html
+python nettrace.py -d example.com -o report.json --verbose
 ```
 
-**Pas de sous-domaines trouvés**
-- Vérifiez votre connexion internet
-- Installez subfinder/amass pour plus de résultats
-- Certains domaines n'ont pas de certificats SSL publics
-
-**Erreur WHOIS**
-- Certains TLD ne sont pas supportés par python-whois
-- Vérifiez que le domaine existe et est valide
-
-**Erreurs de cache**
+### Scan actif de ports (opt-in)
 ```bash
-# Vider le cache en cas de problème
+python nettrace.py -d example.com --active
+```
+
+### Comparer deux domaines
+```bash
+python nettrace.py --compare example.com google.com
+```
+
+### Output machine-readable (pipelines/SIEM)
+```bash
+python nettrace.py -d example.com --json | jq '.risk_score'
+```
+
+### Gestion du cache
+```bash
 python nettrace.py --clear-cache
-
-# Ou supprimer manuellement
-rm -rf cache/*
+python nettrace.py -d example.com --no-cache
 ```
 
-**Timeouts fréquents**
-- Ajustez les timeouts dans config/settings.py
-- Vérifiez votre connexion internet
-- Utilisez le mode verbeux pour diagnostiquer
+## Options CLI
 
-**Timeout sur les sous-domaines**
-- Utilisez le mode verbeux (`-v`) pour voir les détails
-- Certains outils externes peuvent être lents
+```
+  -d, --domain       Domaine à analyser
+  -o, --output       Fichier de sortie
+  -f, --format       json | txt | html | csv  (défaut: json)
+  --active           Active le scan de ports TCP
+  --compare D1 D2    Compare deux domaines côte à côte
+  --no-cache         Ignore le cache local
+  --json             Output JSON pur (pas de rich, pour pipelines)
+  -v, --verbose      Mode verbeux
+  -i, --interactive  Menu interactif
+  --clear-cache      Vide le cache et quitte
+```
 
-## 🔒 Éthique et légalité
+## Score de risque
 
-### Usage responsable
-- ✅ Reconnaissance passive uniquement
-- ✅ Sources d'information publiques
-- ✅ Respect des robots.txt et rate limits
-- ❌ Pas de scan actif ou intrusif
-- ❌ Pas d'exploitation de vulnérabilités
+Score unifié 0-100, 7 facteurs pondérés :
 
-### Confidentialité
-NetTrace respecte la vie privée :
-- Aucune donnée envoyée à des tiers (sauf requêtes publiques légitimes)
-- Pas de tracking ou de logs externes
-- Toutes les analyses sont locales
+| Facteur | Poids |
+|---------|-------|
+| Âge du domaine | 25 pts |
+| Complétude DNS | 15 pts |
+| Sécurité email (SPF/DMARC/DKIM) | 20 pts |
+| HTTPS + security headers | 15 pts |
+| Infrastructure sous-domaines | 10 pts |
+| Complétude WHOIS | 10 pts |
+| Présence archives | 5 pts |
 
-## 🤝 Contribution
+| Score | Niveau |
+|-------|--------|
+| 80–100 | LOW RISK |
+| 60–79 | MEDIUM RISK |
+| 40–59 | ELEVATED RISK |
+| 0–39 | HIGH RISK |
 
-Les contributions sont les bienvenues ! Voici comment contribuer :
+## Sécurité email
 
-1. **Fork** le projet
-2. Créez une **branche** pour votre fonctionnalité (`git checkout -b feature/AmazingFeature`)
-3. **Committez** vos changements (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrez une **Pull Request**
+- **SPF** : validité, mécanisme `+all` vs `-all`
+- **DMARC** : policy `p=none/quarantine/reject`, `rua=`
+- **DKIM** : 18 sélecteurs testés (`default`, `google`, `mail`, `selector1/2`…)
+- **BIMI** : record `default._bimi`
+- **MTA-STS** : record `_mta-sts`
 
-### Guidelines de contribution
-- Respectez le style de code existant
-- Ajoutez des tests pour les nouvelles fonctionnalités
-- Mettez à jour la documentation si nécessaire
-- Testez vos modifications sur plusieurs domaines
+## Subdomain Takeover
 
-## 📝 Changelog
+28 services détectés : GitHub Pages, Heroku, AWS S3, Azure, Zendesk, Shopify, Fastly, Netlify, WordPress.com, Surge.sh, Ghost.io, Webflow, Squarespace, Wix, Bitbucket, Intercom, Pantheon, Unbounce, Statuspage, Freshdesk…
 
-### v1.0.0 (2025-01-XX)
-- 🎉 Version initiale
-- ✅ WHOIS lookup complet
-- ✅ Résolution DNS multi-enregistrements
-- ✅ Extraction de sous-domaines via crt.sh
-- ✅ Support subfinder/amass
-- ✅ Score de confiance intelligent
-- ✅ Analyse des technologies web
-- ✅ Analyse de sécurité avancée
-- ✅ Géolocalisation et infrastructure
-- ✅ Analyse de réputation
-- ✅ Système de cache intelligent
-- ✅ Export multi-formats (JSON/HTML/CSV/XML)
-- ✅ Analyse en lot
-- ✅ Monitoring et alertes
-- ✅ Interface CLI colorée
+## Exports
 
-## 📄 Licence
+| Format | Usage |
+|--------|-------|
+| `json` | Données complètes structurées |
+| `html` | Rapport dark theme standalone (offline) |
+| `txt` | Rapport lisible |
+| `csv` | 24 colonnes pour SIEM/Excel/batch |
 
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+## Structure
 
-## 🙏 Remerciements
+```
+nettrace.py              # Point d'entrée
+config.py                # Configuration et constantes
+cache.py                 # Cache local (~/.nettrace/cache/)
+requirements.txt
+modules/
+├── dns_analysis.py      # DNS + AXFR + DNSSEC
+├── whois_analysis.py    # WHOIS
+├── http_analysis.py     # HTTP/TLS + WAF/CDN
+├── geo_analysis.py      # GeoIP + ASN (ip-api.com)
+├── subdomain_analysis.py # crt.sh + takeover detection
+├── email_security.py    # SPF/DMARC/DKIM/BIMI/MTA-STS
+├── port_scanner.py      # TCP scan opt-in
+├── archive.py           # Wayback Machine CDX API
+├── scoring.py           # Score de risque unifié
+└── dorks.py             # Google Dorks (50+)
+exporters/
+├── json_exporter.py
+├── txt_exporter.py
+├── csv_exporter.py
+└── html_exporter.py     # Rapport HTML self-contained
+```
 
-- [python-whois](https://github.com/richardpenman/whois) pour les requêtes WHOIS
-- [dnspython](https://github.com/rthalley/dnspython) pour la résolution DNS
-- [crt.sh](https://crt.sh/) pour les certificats SSL publics
-- [ProjectDiscovery](https://github.com/projectdiscovery) pour subfinder
-- [OWASP Amass](https://github.com/OWASP/Amass) pour la reconnaissance passive
+## Dépendances
 
-## 📞 Support
+```
+requests, dnspython, python-whois, python-dateutil, rich
+```
 
-- 🐛 **Issues** : [GitHub Issues](https://github.com/votre-username/nettrace/issues)
-- 💬 **Discussions** : [GitHub Discussions](https://github.com/votre-username/nettrace/discussions)
-- 📧 **Email** : votre-email@example.com
+Aucune clé API. Toutes les sources sont gratuites et publiques.
+
+## Éthique
+
+- Reconnaissance passive par défaut (sources publiques uniquement)
+- `--active` (scan ports) : usage sur systèmes autorisés uniquement
+- Pas d'exploitation, pas de scan intrusif
+
+## Changelog
+
+### v2.0 (2026-03)
+- Réécriture complète en architecture modulaire
+- Interface `rich` (tableaux, panels, progress bars, spinners)
+- 7 nouveaux modules : HTTP/TLS, GeoIP, Email Security, Archive, Port Scanner, Dorks, Risk Score
+- Détection subdomain takeover (28 services)
+- Export HTML dark theme standalone
+- Export CSV pour SIEM
+- Mode `--compare` deux domaines
+- Cache local 24h
+- Output `--json` machine-readable
+- Correction bug doublon argparse v1
+
+### v1.0
+- WHOIS, DNS, Sous-domaines (crt.sh), Score de confiance, Export JSON/TXT
 
 ---
 
-<div align="center">
+**Author:** [Root3301](https://github.com/Rooot3301) — Issues: [github.com/Rooot3301/NETTRACE/issues](https://github.com/Rooot3301/NETTRACE/issues)
 
-**⭐ Si ce projet vous aide, n'hésitez pas à lui donner une étoile ! ⭐**
-
-Made with ❤️ by [Votre Nom](https://github.com/votre-username)
-
-</div>
+<div align="center"><b>Si ce projet t'aide, une étoile c'est cool</b></div>
