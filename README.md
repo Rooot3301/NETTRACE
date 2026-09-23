@@ -12,7 +12,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.0-orange)](https://github.com/Rooot3301/NETTRACE)
+[![Version](https://img.shields.io/badge/Version-2.1-orange)](https://github.com/Rooot3301/NETTRACE)
 
 **NetTrace v2** est un outil OSINT et de pentest de domaines entièrement réécrit. Il agrège **12 sources d'analyse distinctes** dans une interface terminal moderne (powered by `rich`), exporte en 4 formats et ne nécessite **aucune clé API payante**.
 
@@ -32,12 +32,13 @@
 | **Sécurité Email** | SPF, DMARC, DKIM (18 sélecteurs testés), BIMI, MTA-STS |
 | **Wayback Machine** | Première apparition, snapshots, URLs sensibles archivées |
 | **Google Dorks** | 50+ dorks générés en 8 catégories, prêts à copier |
-| **Score de risque** | Score unifié 0-100 avec 7 facteurs pondérés + recommandations |
+| **Trust & Maturity Score** | Score unifié 0-100 avec 7 facteurs pondérés + recommandations. Mesure la **maturité/hygiène** du domaine, **pas** sa dangerosité (voir plus bas). |
 
 ### Pentest actif (opt-in)
 | Module | Détail |
 |--------|--------|
 | **Port Scan** | 20 ports communs via socket (flag `--active` requis) |
+| **Subdomain Takeover (confirmation HTTP)** | La détection de CNAME orphelins est passive ; la **confirmation HTTP** n'est envoyée qu'avec `--active` |
 
 ### Interface & exports
 - Terminal **rich** : tableaux, panneaux colorés, barres de progression, spinners
@@ -91,6 +92,12 @@ python nettrace.py -d example.com --active
 python nettrace.py --compare example.com google.com
 ```
 
+### Analyse par lot (batch)
+```bash
+# Un domaine par ligne dans domains.txt ; -o exporte un CSV multi-lignes
+python nettrace.py --batch domains.txt -o batch_report.csv
+```
+
 ### Output machine-readable (pipelines/SIEM)
 ```bash
 python nettrace.py -d example.com --json | jq '.risk_score'
@@ -108,8 +115,9 @@ python nettrace.py -d example.com --no-cache
   -d, --domain       Domaine à analyser
   -o, --output       Fichier de sortie
   -f, --format       json | txt | html | csv  (défaut: json)
-  --active           Active le scan de ports TCP
+  --active           Active le scan de ports TCP + confirmation HTTP des takeovers
   --compare D1 D2    Compare deux domaines côte à côte
+  --batch FILE       Analyse une liste de domaines (un par ligne) ; -o = CSV combiné
   --no-cache         Ignore le cache local
   --json             Output JSON pur (pas de rich, pour pipelines)
   -v, --verbose      Mode verbeux
@@ -117,7 +125,9 @@ python nettrace.py -d example.com --no-cache
   --clear-cache      Vide le cache et quitte
 ```
 
-## Score de risque
+## Trust & Maturity Score
+
+> **⚠️ Ce que ce score mesure (et ne mesure pas).** Il évalue la **maturité et l'hygiène de configuration** d'un domaine (âge, complétude DNS, sécurité email/HTTPS, historique) — **pas sa dangerosité**. Un domaine de phishing récent derrière Cloudflare avec HTTPS valide peut obtenir un score correct. Pour un verdict de malveillance, croisez avec des sources de réputation / threat intelligence (VirusTotal, etc.).
 
 Score unifié 0-100, 7 facteurs pondérés :
 
@@ -133,10 +143,10 @@ Score unifié 0-100, 7 facteurs pondérés :
 
 | Score | Niveau |
 |-------|--------|
-| 80–100 | LOW RISK |
-| 60–79 | MEDIUM RISK |
-| 40–59 | ELEVATED RISK |
-| 0–39 | HIGH RISK |
+| 80–100 | Trusted / Established |
+| 60–79 | Moderate Trust |
+| 40–59 | Low Trust |
+| 0–39 | Untrusted / Immature |
 
 ## Sécurité email
 
@@ -166,6 +176,9 @@ nettrace.py              # Point d'entrée
 config.py                # Configuration et constantes
 cache.py                 # Cache local (~/.nettrace/cache/)
 requirements.txt
+requirements-dev.txt     # Dépendances de test
+LICENSE                  # Licence MIT
+tests/                   # Suite pytest
 modules/
 ├── dns_analysis.py      # DNS + AXFR + DNSSEC
 ├── whois_analysis.py    # WHOIS
@@ -198,7 +211,29 @@ Aucune clé API. Toutes les sources sont gratuites et publiques.
 - `--active` (scan ports) : usage sur systèmes autorisés uniquement
 - Pas d'exploitation, pas de scan intrusif
 
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+Couvre le parsing SPF, les dates WHOIS, le scoring, le cache (variantes passive/active) et l'export CSV.
+
 ## Changelog
+
+### v2.1 (2026-09)
+- **Fix :** l'export CSV échouait silencieusement en mode passif (`ports=None`) — corrigé
+- **Fix :** `--active` renvoyait un résultat en cache sans les ports — cache désormais séparé passif/actif
+- **Fix :** la confirmation HTTP de subdomain takeover ne s'exécute plus qu'en mode `--active` (le run par défaut reste passif) ; détection CNAME parallélisée
+- **Fix :** remplacement de `datetime.utcnow()` (déprécié) par `datetime.now(timezone.utc)`
+- **Fix :** `colorama` retiré des dépendances (inutilisé), ajout du fichier `LICENSE` (MIT), `AUTHOR` corrigé
+- **Perf :** modules d'analyse exécutés en parallèle (2 phases) — analyse 4-5× plus rapide
+- **Amélioration :** vérification du certificat TLS (chaîne + hostname) rapportée, avec repli non vérifié
+- **Amélioration :** `--batch FILE` en CLI + export CSV combiné multi-lignes
+- **Amélioration :** score renommé « Trust & Maturity » avec avertissement (ne mesure pas la malveillance)
+- **Amélioration :** compteur de snapshots Wayback fiabilisé
+- **Tests :** ajout d'une suite `pytest` (30 tests)
 
 ### v2.0 (2026-03)
 - Réécriture complète en architecture modulaire

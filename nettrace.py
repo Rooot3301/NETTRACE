@@ -9,8 +9,9 @@ import json
 import re
 import sys
 import time
-from datetime import datetime
-from typing import Dict, Any, List, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional, Callable, Tuple
 
 from rich.console import Console
 from rich.table import Table
@@ -107,10 +108,13 @@ def run_analysis(domain: str, options: Dict[str, Any]) -> Optional[Dict[str, Any
         return None
 
     cache = CacheManager()
+    # Passive and active analyses are cached separately so that --active never
+    # returns a passive (port-less) result from the cache, and vice versa.
+    cache_variant = "active" if active else ""
 
     # Check cache first
     if not no_cache:
-        cached = cache.get(domain)
+        cached = cache.get(domain, variant=cache_variant)
         if cached:
             if not json_only:
                 console.print(f"[dim]Using cached results for [cyan]{domain}[/cyan] (use --no-cache to refresh)[/dim]")
@@ -130,7 +134,7 @@ def run_analysis(domain: str, options: Dict[str, Any]) -> Optional[Dict[str, Any
 
     results: Dict[str, Any] = {
         "domain": domain,
-        "analysis_date": datetime.utcnow().isoformat(),
+        "analysis_date": datetime.now(timezone.utc).isoformat(),
         "whois": {},
         "dns": {},
         "http": {},
@@ -143,11 +147,32 @@ def run_analysis(domain: str, options: Dict[str, Any]) -> Optional[Dict[str, Any
         "dorks": {},
     }
 
-    total_steps = 9 if not active else 10
-    # Active scan adds port scanning
+    # Total progress steps: phase 1 (5) + phase 2 (2, +1 if active) + scoring (1).
+    total_steps = 8 + (1 if active else 0)
 
     if not json_only:
         console.print(f"\n[bold cyan]Analyzing:[/bold cyan] [white]{domain}[/white]\n")
+
+    def _run_step(key: str, fn: Callable[[], Any], fallback: Dict[str, Any]) -> Tuple[str, Any]:
+        """Execute a module function, capturing errors into a fallback dict."""
+        try:
+            return key, fn()
+        except Exception as e:
+            fb = dict(fallback)
+            fb["error"] = str(e)
+            return key, fb
+
+    def _run_phase(progress, task, steps: List[Tuple[str, Callable[[], Any], Dict[str, Any]]]) -> None:
+        """Run a batch of independent module functions concurrently."""
+        if not steps:
+            return
+        with ThreadPoolExecutor(max_workers=len(steps)) as executor:
+            futures = [executor.submit(_run_step, k, fn, fb) for k, fn, fb in steps]
+            for future in as_completed(futures):
+                key, value = future.result()
+                results[key] = value
+                if progress is not None:
+                    progress.advance(task)
 
     with Progress(
         SpinnerColumn(),
@@ -158,81 +183,43 @@ def run_analysis(domain: str, options: Dict[str, Any]) -> Optional[Dict[str, Any
         transient=not json_only,
         disable=json_only,
     ) as progress:
-        task = progress.add_task("[cyan]Starting analysis...", total=total_steps)
+        task = progress.add_task("[cyan]Running independent modules...", total=total_steps)
 
-        # Step 1: WHOIS
-        progress.update(task, description="[cyan]Step 1/9  WHOIS lookup...", advance=0)
-        try:
-            results["whois"] = analyze_whois(domain, verbose=False)
-        except Exception as e:
-            results["whois"] = {"error": str(e)}
-        progress.advance(task)
+        # Phase 1: fully independent modules run in parallel.
+        _run_phase(progress, task, [
+            ("whois", lambda: analyze_whois(domain, verbose=False), {}),
+            ("dns", lambda: analyze_dns(domain, verbose=False), {}),
+            ("http", lambda: analyze_http(domain, verbose=False), {}),
+            ("subdomains", lambda: analyze_subdomains(domain, verbose=False, active=active),
+             {"subdomains": [], "total_count": 0}),
+            ("archive", lambda: analyze_archive(domain, verbose=False), {}),
+        ])
 
-        # Step 2: DNS
-        progress.update(task, description="[cyan]Step 2/9  DNS analysis...")
-        try:
-            results["dns"] = analyze_dns(domain, verbose=False)
-        except Exception as e:
-            results["dns"] = {"error": str(e)}
-        progress.advance(task)
+        # Phase 2: modules that depend on DNS results run in parallel.
+        progress.update(task, description="[cyan]Geo / email / ports...")
+        dns_data = results.get("dns") or {}
+        ips = dns_data.get("ips", []) if isinstance(dns_data, dict) else []
 
-        # Step 3: HTTP/TLS
-        progress.update(task, description="[cyan]Step 3/9  HTTP/TLS fingerprinting...")
-        try:
-            results["http"] = analyze_http(domain, verbose=False)
-        except Exception as e:
-            results["http"] = {"error": str(e)}
-        progress.advance(task)
-
-        # Step 4: GeoIP
-        progress.update(task, description="[cyan]Step 4/9  GeoIP lookup...")
-        try:
-            ips = results["dns"].get("ips", []) if results["dns"] else []
+        def _geo_step() -> Dict[str, Any]:
             if ips:
-                results["geo"] = analyze_geo(domain, ips, verbose=False)
-            else:
-                results["geo"] = {"domain": domain, "error": "No IPs found", "ip_info": [],
-                                  "unique_countries": [], "unique_asns": [], "is_behind_cdn": False}
-        except Exception as e:
-            results["geo"] = {"error": str(e)}
-        progress.advance(task)
+                return analyze_geo(domain, ips, verbose=False)
+            return {"domain": domain, "error": "No IPs found", "ip_info": [],
+                    "unique_countries": [], "unique_asns": [], "is_behind_cdn": False}
 
-        # Step 5: Subdomains
-        progress.update(task, description="[cyan]Step 5/9  Subdomain enumeration...")
-        try:
-            results["subdomains"] = analyze_subdomains(domain, verbose=False)
-        except Exception as e:
-            results["subdomains"] = {"error": str(e), "subdomains": [], "total_count": 0}
-        progress.advance(task)
-
-        # Step 6: Email Security
-        progress.update(task, description="[cyan]Step 6/9  Email security checks...")
-        try:
-            results["email"] = analyze_email_security(domain, results.get("dns", {}), verbose=False)
-        except Exception as e:
-            results["email"] = {"error": str(e)}
-        progress.advance(task)
-
-        # Step 7: Archive
-        progress.update(task, description="[cyan]Step 7/9  Wayback Machine archive...")
-        try:
-            results["archive"] = analyze_archive(domain, verbose=False)
-        except Exception as e:
-            results["archive"] = {"error": str(e)}
-        progress.advance(task)
-
-        # Step 8: Port scan (optional)
+        phase2: List[Tuple[str, Callable[[], Any], Dict[str, Any]]] = [
+            ("geo", _geo_step, {}),
+            ("email", lambda: analyze_email_security(domain, dns_data, verbose=False), {}),
+        ]
         if active:
-            progress.update(task, description="[cyan]Step 8/9  Port scanning (active)...")
-            try:
-                ips = results["dns"].get("ips", []) if results["dns"] else []
-                results["ports"] = scan_ports(domain, ips, verbose=False)
-            except Exception as e:
-                results["ports"] = {"error": str(e), "open_ports": []}
-            progress.advance(task)
+            phase2.append((
+                "ports",
+                lambda: scan_ports(domain, ips, verbose=False, show_progress=False),
+                {"open_ports": []},
+            ))
+        _run_phase(progress, task, phase2)
 
-        # Step 9: Risk Scoring
-        progress.update(task, description="[cyan]Step 9/9  Calculating risk score...")
+        # Risk / maturity scoring (needs everything above).
+        progress.update(task, description="[cyan]Calculating trust score...")
         try:
             results["scoring"] = calculate_risk_score(
                 results.get("whois"),
@@ -248,7 +235,7 @@ def run_analysis(domain: str, options: Dict[str, Any]) -> Optional[Dict[str, Any
             results["scoring"] = {"error": str(e), "score": 0, "risk_level": "HIGH_RISK"}
         progress.advance(task)
 
-        # Dorks (instant, no network)
+        # Dorks (instant, no network).
         try:
             results["dorks"] = generate_dorks(domain)
         except Exception:
@@ -256,9 +243,9 @@ def run_analysis(domain: str, options: Dict[str, Any]) -> Optional[Dict[str, Any
 
         progress.update(task, description="[green]Analysis complete!")
 
-    # Cache the results
+    # Cache the results (keyed by passive/active variant).
     if not no_cache:
-        cache.set(domain, results)
+        cache.set(domain, results, variant=cache_variant)
 
     return results
 
@@ -345,8 +332,8 @@ def display_results(results: Dict[str, Any]) -> None:
         from modules.port_scanner import _display_ports
         _display_ports(ports)
 
-    # ---- Risk Score ----
-    console.print(Rule("[bold cyan]Risk Assessment[/bold cyan]", style="cyan"))
+    # ---- Trust & Maturity Score ----
+    console.print(Rule("[bold cyan]Trust & Maturity Assessment[/bold cyan]", style="cyan"))
     from modules.scoring import display_score
     display_score(scoring, domain)
 
@@ -472,8 +459,13 @@ def export_results(results: Dict[str, Any], output: str, fmt: str) -> bool:
         return False
 
 
-def batch_analysis(domains: List[str], options: Dict[str, Any], output_dir: str = ".") -> None:
-    """Run analysis on multiple domains and display a summary table."""
+def batch_analysis(domains: List[str], options: Dict[str, Any], output: Optional[str] = None) -> None:
+    """
+    Run analysis on multiple domains and display a summary table.
+
+    If ``output`` is given, all results are written to a single multi-row CSV
+    (one line per domain) suitable for SIEM/spreadsheet ingestion.
+    """
     if not domains:
         console.print("[yellow]No domains to analyze.[/yellow]")
         return
@@ -490,6 +482,14 @@ def batch_analysis(domains: List[str], options: Dict[str, Any], output_dir: str 
     if not all_results:
         console.print("[red]No results obtained.[/red]")
         return
+
+    # Combined CSV export (one row per domain)
+    if output:
+        from exporters.csv_exporter import export_csv_batch
+        if export_csv_batch(all_results, output):
+            console.print(f"[green]Batch CSV saved:[/green] [cyan]{output}[/cyan] ({len(all_results)} rows)")
+        else:
+            console.print(f"[red]Failed to save batch CSV to {output}[/red]")
 
     # Summary table
     summary_table = Table(
@@ -698,7 +698,10 @@ def show_interactive_menu() -> None:
                         domains.append(extra.strip())
 
                 if domains:
-                    batch_analysis(domains, options)
+                    batch_output = None
+                    if Confirm.ask("[cyan]Export results to a combined CSV?[/cyan]", default=False):
+                        batch_output = Prompt.ask("[cyan]CSV filename[/cyan]", default="batch_report.csv")
+                    batch_analysis(domains, options, output=batch_output)
                 else:
                     console.print("[yellow]No domains entered.[/yellow]")
             except KeyboardInterrupt:
@@ -754,7 +757,7 @@ def show_interactive_menu() -> None:
                 "  • Email - SPF, DMARC, DKIM, BIMI, MTA-STS\n"
                 "  • Archive - Wayback Machine CDX API\n"
                 "  • Ports - TCP port scan (active mode only)\n"
-                "  • Score - Unified risk scoring 0-100\n"
+                "  • Score - Unified trust & maturity scoring 0-100\n"
                 "  • Dorks - Pre-built Google OSINT queries\n\n"
                 "[cyan]CLI Usage:[/cyan]\n"
                 "  python nettrace.py -d example.com\n"
@@ -816,6 +819,11 @@ Examples:
         help="Compare two domains side by side",
     )
     parser.add_argument(
+        "--batch",
+        metavar="FILE",
+        help="Analyze a list of domains from a file (one per line); use -o for a combined CSV",
+    )
+    parser.add_argument(
         "--no-cache",
         action="store_true",
         help="Bypass local cache and force fresh analysis",
@@ -868,6 +876,28 @@ Examples:
             "json_only": args.json_only,
         }
         compare_domains(d1, d2, options)
+        sys.exit(0)
+
+    # Handle --batch
+    if args.batch:
+        try:
+            with open(args.batch, "r", encoding="utf-8") as f:
+                domains = [line.strip() for line in f if line.strip() and not line.strip().startswith("#")]
+        except OSError as e:
+            console.print(f"[red]Could not read batch file: {e}[/red]")
+            sys.exit(1)
+        if not domains:
+            console.print("[yellow]No domains found in batch file.[/yellow]")
+            sys.exit(1)
+        if not args.json_only:
+            print_banner()
+        options = {
+            "verbose": args.verbose,
+            "active": args.active,
+            "no_cache": args.no_cache,
+            "json_only": args.json_only,
+        }
+        batch_analysis(domains, options, output=args.output)
         sys.exit(0)
 
     # Interactive mode (default if no domain given)

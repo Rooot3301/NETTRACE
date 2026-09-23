@@ -4,7 +4,7 @@ Generates a completely self-contained, offline-viewable HTML security report.
 No external dependencies - all CSS and JS are inline.
 """
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 
@@ -1035,7 +1035,7 @@ def export_html(results: Dict[str, Any], filename: str) -> bool:
     """
     try:
         domain = results.get("domain", "unknown")
-        analysis_date = results.get("analysis_date", datetime.utcnow().isoformat())
+        analysis_date = results.get("analysis_date", datetime.now(timezone.utc).isoformat())
         try:
             dt = datetime.fromisoformat(str(analysis_date))
             date_str = dt.strftime("%Y-%m-%d %H:%M UTC")

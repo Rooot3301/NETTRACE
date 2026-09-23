@@ -5,6 +5,7 @@ Detects potential subdomain takeover via CNAME fingerprinting.
 """
 import subprocess
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Any, List, Optional, Set
 
 import requests
@@ -77,8 +78,10 @@ def _get_cname(subdomain: str) -> Optional[str]:
     """Resolve CNAME record for a subdomain. Returns CNAME target or None."""
     try:
         resolver = dns.resolver.Resolver()
-        resolver.timeout = DEFAULT_TIMEOUT
-        resolver.lifetime = DEFAULT_TIMEOUT
+        # Short timeout: this runs across up to 100 subdomains, many of which
+        # will not resolve, so a long per-lookup wait would dominate runtime.
+        resolver.timeout = 3
+        resolver.lifetime = 3
         answers = resolver.resolve(subdomain, "CNAME")
         for rdata in answers:
             return rdata.target.to_text().rstrip(".")
@@ -108,14 +111,35 @@ def _resolves(subdomain: str) -> bool:
     return False
 
 
-def _check_takeover(subdomain: str, cname: str) -> Optional[Dict[str, Any]]:
+def _check_takeover(subdomain: str, cname: str, do_http: bool = False) -> Optional[Dict[str, Any]]:
     """
     Check if a subdomain with a CNAME is vulnerable to takeover.
-    Returns dict with details if potentially vulnerable, else None.
+
+    Matching the CNAME target against a known fingerprint pattern is passive
+    (DNS only). Confirming the fingerprint requires an HTTP GET to the
+    subdomain, which is active: it is only performed when ``do_http`` is True.
+
+    Returns dict with details if the CNAME points at a known takeover-prone
+    service, else None. ``confirmed`` is only ever True after an HTTP check.
     """
     for pattern, fingerprint in TAKEOVER_FINGERPRINTS.items():
         if pattern.lower() in cname.lower():
-            # Try HTTP GET to confirm vulnerability
+            candidate = {
+                "subdomain": subdomain,
+                "cname": cname,
+                "service": pattern,
+                "fingerprint": fingerprint,
+                "http_status": None,
+                "confirmed": False,
+                "http_checked": False,
+            }
+            if not do_http:
+                # Passive mode: report the dangling-CNAME candidate without
+                # sending any request to the target.
+                return candidate
+
+            # Active mode: confirm via HTTP GET.
+            candidate["http_checked"] = True
             try:
                 resp = requests.get(
                     f"https://{subdomain}",
@@ -124,39 +148,29 @@ def _check_takeover(subdomain: str, cname: str) -> Optional[Dict[str, Any]]:
                     allow_redirects=True,
                     headers={"User-Agent": "Mozilla/5.0 (compatible; NetTrace/2.0)"},
                 )
-                if fingerprint.lower() in resp.text.lower():
-                    return {
-                        "subdomain": subdomain,
-                        "cname": cname,
-                        "service": pattern,
-                        "fingerprint": fingerprint,
-                        "http_status": resp.status_code,
-                        "confirmed": True,
-                    }
-                # Even if body doesn't match, flag as candidate
-                return {
-                    "subdomain": subdomain,
-                    "cname": cname,
-                    "service": pattern,
-                    "fingerprint": fingerprint,
-                    "http_status": resp.status_code,
-                    "confirmed": False,
-                }
+                candidate["http_status"] = resp.status_code
+                candidate["confirmed"] = fingerprint.lower() in resp.text.lower()
             except Exception:
-                return {
-                    "subdomain": subdomain,
-                    "cname": cname,
-                    "service": pattern,
-                    "fingerprint": fingerprint,
-                    "http_status": None,
-                    "confirmed": False,
-                }
+                pass
+            return candidate
     return None
 
 
-def analyze_subdomains(domain: str, verbose: bool = False) -> Dict[str, Any]:
+def _scan_subdomain_takeover(subdomain: str, do_http: bool) -> Optional[Dict[str, Any]]:
+    """Resolve a subdomain's CNAME and check it for takeover exposure."""
+    cname = _get_cname(subdomain)
+    if not cname:
+        return None
+    return _check_takeover(subdomain, cname, do_http=do_http)
+
+
+def analyze_subdomains(domain: str, verbose: bool = False, active: bool = False) -> Dict[str, Any]:
     """
-    Enumerate subdomains from multiple sources and check for takeover vulnerabilities.
+    Enumerate subdomains from multiple sources and check for takeover exposure.
+
+    CNAME resolution (to spot dangling records pointing at takeover-prone
+    services) is passive and always runs. The HTTP confirmation step is active
+    and only runs when ``active`` is True, keeping the default analysis passive.
 
     Returns dict with:
       - subdomains: list of all discovered subdomains
@@ -200,17 +214,27 @@ def analyze_subdomains(domain: str, verbose: bool = False) -> Dict[str, Any]:
     result["subdomains"] = sorted_subs
     result["total_count"] = len(sorted_subs)
 
-    # Takeover detection
+    # Takeover detection - CNAME resolution runs in parallel (passive DNS),
+    # HTTP confirmation only when active. Limit checks to avoid excess lookups.
     takeover_candidates = []
-    # Limit checks to prevent excessive requests
     check_limit = min(len(sorted_subs), 100)
-    for subdomain in sorted_subs[:check_limit]:
-        cname = _get_cname(subdomain)
-        if cname:
-            candidate = _check_takeover(subdomain, cname)
-            if candidate:
-                takeover_candidates.append(candidate)
+    to_check = sorted_subs[:check_limit]
+    if to_check:
+        max_workers = min(20, len(to_check))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(_scan_subdomain_takeover, sub, active)
+                for sub in to_check
+            ]
+            for future in as_completed(futures):
+                try:
+                    candidate = future.result()
+                except Exception:
+                    candidate = None
+                if candidate:
+                    takeover_candidates.append(candidate)
 
+    takeover_candidates.sort(key=lambda c: c.get("subdomain", ""))
     result["takeover_candidates"] = takeover_candidates
 
     if verbose:

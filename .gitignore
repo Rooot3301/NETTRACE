@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# NetTrace local cache
+.nettrace/
+
+# Generated reports
+*_report.json
+*_report.txt
+*_report.html
+*_report.csv
+batch_report.csv
+
+# OS / editor
+.DS_Store
+Thumbs.db

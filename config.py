@@ -130,6 +130,6 @@ CDN_SIGNATURES = {
 }
 
 # Version info
-VERSION = "2.0"
+VERSION = "2.1"
 TOOL_NAME = "NetTrace"
-AUTHOR = "OSINT Research Tool"
+AUTHOR = "Root3301"

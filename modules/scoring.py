@@ -1,7 +1,11 @@
 """
-NetTrace v2 - Risk Scoring Module
-Calculates a unified risk/trust score for a domain based on all analysis results.
-Higher score = more established/safer. Lower score = riskier/more suspicious.
+NetTrace v2 - Trust & Maturity Scoring Module
+Calculates a unified trust/maturity score for a domain based on all analysis
+results. It reflects how established and well-configured a domain is (age, DNS
+completeness, email/HTTPS hygiene, history) - NOT whether it is malicious.
+A young phishing domain with valid HTTPS can still score well here, so always
+cross-check reputation/threat-intelligence sources for a maliciousness verdict.
+Higher score = more established/better hygiene. Lower score = less mature.
 """
 from typing import Dict, Any, List, Optional
 
@@ -25,10 +29,10 @@ RISK_COLORS = {
 }
 
 RISK_LABELS = {
-    RISK_LOW: "Low Risk",
-    RISK_MEDIUM: "Medium Risk",
-    RISK_ELEVATED: "Elevated Risk",
-    RISK_HIGH: "High Risk",
+    RISK_LOW: "Trusted / Established",
+    RISK_MEDIUM: "Moderate Trust",
+    RISK_ELEVATED: "Low Trust",
+    RISK_HIGH: "Untrusted / Immature",
 }
 
 
@@ -442,11 +446,13 @@ def display_score(scoring: Dict[str, Any], domain: str) -> None:
     score_content = (
         f"\n  [{color} bold]Score: {score}/100[/{color} bold]  [{color}]{risk_label}[/{color}]\n"
         f"\n  [{color}]{bar}[/{color}]\n"
+        f"\n  [dim]Measures domain maturity & configuration hygiene - not maliciousness.[/dim]\n"
+        f"  [dim]Cross-check reputation/threat-intel (e.g. VirusTotal) for that.[/dim]\n"
     )
 
     console.print(Panel(
         score_content,
-        title=f"[bold cyan]Risk Assessment - {domain}[/bold cyan]",
+        title=f"[bold cyan]Trust & Maturity - {domain}[/bold cyan]",
         border_style=color,
     ))
 

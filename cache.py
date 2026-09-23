@@ -26,17 +26,26 @@ class CacheManager:
         except OSError:
             pass
 
-    def _cache_path(self, domain: str) -> Path:
-        """Return the path for a domain's cache file."""
+    def _cache_path(self, domain: str, variant: str = "") -> Path:
+        """
+        Return the path for a domain's cache file.
+
+        ``variant`` distinguishes results produced under different options
+        (e.g. an active port scan) so that a passive result is never served
+        when the caller explicitly asked for an active analysis.
+        """
         safe_name = domain.lower().strip().replace("/", "_").replace("\\", "_")
+        if variant:
+            safe_variant = variant.lower().strip().replace("/", "_").replace("\\", "_")
+            safe_name = f"{safe_name}__{safe_variant}"
         return self.cache_dir / f"{safe_name}.json"
 
-    def get(self, domain: str) -> Optional[Dict[str, Any]]:
+    def get(self, domain: str, variant: str = "") -> Optional[Dict[str, Any]]:
         """
         Retrieve cached result for a domain.
         Returns None if not cached or TTL expired.
         """
-        path = self._cache_path(domain)
+        path = self._cache_path(domain, variant)
         if not path.exists():
             return None
         try:
@@ -51,15 +60,16 @@ class CacheManager:
         except (json.JSONDecodeError, OSError, KeyError):
             return None
 
-    def set(self, domain: str, data: Dict[str, Any]) -> bool:
+    def set(self, domain: str, data: Dict[str, Any], variant: str = "") -> bool:
         """
         Store result for a domain in cache.
         Returns True on success, False on failure.
         """
-        path = self._cache_path(domain)
+        path = self._cache_path(domain, variant)
         payload = {
             "_cached_at": time.time(),
             "_domain": domain.lower().strip(),
+            "_variant": variant,
             "result": data,
         }
         try:
@@ -78,13 +88,21 @@ class CacheManager:
         """
         cleared = 0
         if domain is not None:
-            path = self._cache_path(domain)
-            if path.exists():
-                try:
-                    path.unlink()
-                    cleared = 1
-                except OSError:
-                    pass
+            # Remove the base entry and any option-specific variants
+            # (e.g. the "__active" file) for this domain.
+            safe_name = domain.lower().strip().replace("/", "_").replace("\\", "_")
+            candidates = [self._cache_path(domain)]
+            try:
+                candidates.extend(self.cache_dir.glob(f"{safe_name}__*.json"))
+            except OSError:
+                pass
+            for path in candidates:
+                if path.exists():
+                    try:
+                        path.unlink()
+                        cleared += 1
+                    except OSError:
+                        pass
         else:
             # Clear all cache files
             try:

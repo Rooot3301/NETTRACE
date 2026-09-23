@@ -69,7 +69,14 @@ TECH_SIGNATURES = {
 def _get_tls_info(hostname: str, port: int = 443) -> Dict[str, Any]:
     """
     Retrieve TLS certificate details for a host.
-    Returns dict with issuer, subject, SAN, expiry, days_until_expiry, tls_version.
+
+    First attempts a fully verified handshake (hostname + chain). If that fails,
+    it records why (``cert_verified=False`` + ``cert_error``) and falls back to
+    an unverified handshake so certificate details can still be reported for
+    misconfigured hosts.
+
+    Returns dict with issuer, subject, SAN, expiry, days_until_expiry,
+    tls_version, cert_verified, cert_error.
     """
     result: Dict[str, Any] = {
         "issuer": "",
@@ -79,55 +86,80 @@ def _get_tls_info(hostname: str, port: int = 443) -> Dict[str, Any]:
         "not_after": "",
         "days_until_expiry": None,
         "tls_version": "",
+        "cert_verified": False,
+        "cert_error": None,
         "error": None,
     }
+
+    # First pass: fully verified handshake. On success, getpeercert() returns
+    # the parsed certificate dict (which it does NOT under CERT_NONE).
+    cert = None
+    verify_error: Optional[str] = None
     try:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        vctx = ssl.create_default_context()
         with socket.create_connection((hostname, port), timeout=DEFAULT_TIMEOUT) as sock:
-            with ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
+            with vctx.wrap_socket(sock, server_hostname=hostname) as ssock:
+                result["cert_verified"] = True
                 result["tls_version"] = ssock.version() or ""
                 cert = ssock.getpeercert()
-                if cert:
-                    # Subject
-                    subject_dict = {}
-                    for item in cert.get("subject", []):
-                        for k, v in item:
-                            subject_dict[k] = v
-                    result["subject"] = subject_dict.get("commonName", "")
-
-                    # Issuer
-                    issuer_dict = {}
-                    for item in cert.get("issuer", []):
-                        for k, v in item:
-                            issuer_dict[k] = v
-                    org = issuer_dict.get("organizationName", "")
-                    cn = issuer_dict.get("commonName", "")
-                    result["issuer"] = org or cn
-
-                    # SAN
-                    san_list = []
-                    for san_type, san_val in cert.get("subjectAltName", []):
-                        if san_type.lower() == "dns":
-                            san_list.append(san_val)
-                    result["san"] = san_list
-
-                    # Expiry
-                    not_after_str = cert.get("notAfter", "")
-                    not_before_str = cert.get("notBefore", "")
-                    result["not_after"] = not_after_str
-                    result["not_before"] = not_before_str
-                    if not_after_str:
-                        try:
-                            expiry = datetime.datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z")
-                            expiry = expiry.replace(tzinfo=datetime.timezone.utc)
-                            now = datetime.datetime.now(datetime.timezone.utc)
-                            result["days_until_expiry"] = (expiry - now).days
-                        except ValueError:
-                            pass
+    except ssl.SSLCertVerificationError as e:
+        verify_error = f"certificate verification failed: {getattr(e, 'verify_message', None) or str(e)}"[:200]
     except Exception as e:
-        result["error"] = str(e)[:200]
+        verify_error = str(e)[:200]
+
+    result["cert_error"] = verify_error
+
+    # Second pass (only if verification failed): unverified handshake so we can
+    # still report the negotiated TLS version for a misconfigured host.
+    if not result["cert_verified"]:
+        try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            with socket.create_connection((hostname, port), timeout=DEFAULT_TIMEOUT) as sock:
+                with ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
+                    result["tls_version"] = ssock.version() or ""
+        except Exception as e:
+            result["error"] = str(e)[:200]
+
+    if cert:
+        # Subject
+        subject_dict = {}
+        for item in cert.get("subject", []):
+            for k, v in item:
+                subject_dict[k] = v
+        result["subject"] = subject_dict.get("commonName", "")
+
+        # Issuer
+        issuer_dict = {}
+        for item in cert.get("issuer", []):
+            for k, v in item:
+                issuer_dict[k] = v
+        org = issuer_dict.get("organizationName", "")
+        cn = issuer_dict.get("commonName", "")
+        result["issuer"] = org or cn
+
+        # SAN
+        san_list = []
+        for san_type, san_val in cert.get("subjectAltName", []):
+            if san_type.lower() == "dns":
+                san_list.append(san_val)
+        result["san"] = san_list
+
+        # Expiry
+        not_after_str = cert.get("notAfter", "")
+        not_before_str = cert.get("notBefore", "")
+        result["not_after"] = not_after_str
+        result["not_before"] = not_before_str
+        if not_after_str:
+            try:
+                expiry = datetime.datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z")
+                expiry = expiry.replace(tzinfo=datetime.timezone.utc)
+                now = datetime.datetime.now(datetime.timezone.utc)
+                result["days_until_expiry"] = (expiry - now).days
+            except ValueError:
+                pass
+
     return result
 
 
@@ -414,7 +446,14 @@ def _display_http(result: Dict[str, Any]) -> None:
         if len(san_list) > 5:
             san_str += f" (+{len(san_list)-5} more)"
 
+        if tls.get("cert_verified"):
+            verified_str = "[green]Yes (chain + hostname valid)[/green]"
+        else:
+            cert_err = tls.get("cert_error") or "not verified"
+            verified_str = f"[red]No[/red] [dim]({cert_err})[/dim]"
+
         tls_table.add_row("TLS Version", tls.get("tls_version", "") or "[dim]N/A[/dim]")
+        tls_table.add_row("Certificate Valid", verified_str)
         tls_table.add_row("Subject (CN)", tls.get("subject", "") or "[dim]N/A[/dim]")
         tls_table.add_row("Issuer", tls.get("issuer", "") or "[dim]N/A[/dim]")
         tls_table.add_row("Valid Until", tls.get("not_after", "") or "[dim]N/A[/dim]")

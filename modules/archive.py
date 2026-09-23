@@ -77,50 +77,42 @@ def _fetch_cdx_snapshots(domain: str, limit: int = 50) -> List[Dict[str, str]]:
     return snapshots
 
 
+# Cap for the counting query: enough to signal an established history while
+# keeping the response small and fast even for very popular domains.
+_COUNT_CAP = 2000
+
+
 def _fetch_total_count(domain: str) -> Optional[int]:
     """
-    Get approximate total number of archived snapshots for domain.
+    Get the number of archived captures for the domain (capped).
+
+    The CDX API has no cheap exact-count endpoint (``showNumPages`` returns a
+    page count, where one page is tens of thousands of captures, which made the
+    previous estimate meaningless). Instead we count captures across the whole
+    domain up to ``_COUNT_CAP``; the caller treats the value as a lower bound.
+
+    Returns the count, or None if the API could not be reached.
     """
     try:
         params = {
-            "url": f"{domain}/*",
+            "url": domain,
+            "matchType": "domain",
             "output": "json",
-            "limit": 1,
             "fl": "timestamp",
-            "showNumPages": "true",
+            "limit": _COUNT_CAP,
         }
         resp = requests.get(
             CDX_URL,
             params=params,
-            timeout=DEFAULT_TIMEOUT * 2,
+            timeout=DEFAULT_TIMEOUT * 3,
             headers={"User-Agent": "Mozilla/5.0 (compatible; NetTrace/2.0)"},
         )
         if resp.status_code == 200:
-            text = resp.text.strip()
-            # Response may be a number when showNumPages=true
-            try:
-                pages = int(text)
-                return pages * 1  # each page = 1 result in our case
-            except ValueError:
-                pass
-        # Fallback: try a high-limit count
-        params2 = {
-            "url": domain,
-            "output": "json",
-            "limit": 1,
-            "fl": "timestamp",
-            "matchType": "domain",
-        }
-        resp2 = requests.get(
-            CDX_URL,
-            params=params2,
-            timeout=DEFAULT_TIMEOUT * 2,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; NetTrace/2.0)"},
-        )
-        if resp2.status_code == 200:
-            data = resp2.json()
-            if data:
-                return len(data) - 1  # subtract header
+            data = resp.json()
+            if isinstance(data, list) and data:
+                # First row is the header when field names are requested.
+                return max(0, len(data) - 1)
+            return 0
     except Exception:
         pass
     return None
@@ -286,7 +278,12 @@ def _display_archive(result: Dict[str, Any]) -> None:
     first_seen = result.get("first_seen") or "Unknown"
     last_seen = result.get("last_seen") or "Unknown"
     count = result.get("snapshot_count")
-    count_str = str(count) if count is not None else "Unknown"
+    if count is None:
+        count_str = "Unknown"
+    elif count >= _COUNT_CAP:
+        count_str = f"{_COUNT_CAP}+"
+    else:
+        count_str = str(count)
     wayback = result.get("wayback_url") or "N/A"
 
     summary_lines = [

@@ -115,6 +115,7 @@ def scan_ports(
     ips: List[str],
     ports: Optional[List[int]] = None,
     verbose: bool = False,
+    show_progress: bool = True,
 ) -> Dict[str, Any]:
     """
     Scan common ports on all IPs for the domain.
@@ -124,6 +125,8 @@ def scan_ports(
         ips: list of IP addresses to scan
         ports: list of ports to scan (defaults to COMMON_PORTS)
         verbose: display rich output
+        show_progress: render an internal progress bar (disable when called
+            from an orchestrator that already owns a live display)
 
     Returns dict with:
       - open_ports: list of {port, service, banner, ip}
@@ -153,19 +156,7 @@ def scan_ports(
     # Use thread pool for faster scanning
     max_workers = min(20, len(scan_ports_list))
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        transient=True,
-        console=console,
-    ) as progress:
-        task = progress.add_task(
-            f"[cyan]Scanning {len(scan_ports_list)} ports on {primary_ip}...",
-            total=len(scan_ports_list),
-        )
-
+    def _run_scan(progress=None, task=None) -> None:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(_scan_port, primary_ip, port): port
@@ -181,7 +172,25 @@ def scan_ports(
                         open_ports.append(port_result)
                 except Exception:
                     result["scan_summary"][port] = False
-                progress.advance(task)
+                if progress is not None and task is not None:
+                    progress.advance(task)
+
+    if show_progress:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            transient=True,
+            console=console,
+        ) as progress:
+            task = progress.add_task(
+                f"[cyan]Scanning {len(scan_ports_list)} ports on {primary_ip}...",
+                total=len(scan_ports_list),
+            )
+            _run_scan(progress, task)
+    else:
+        _run_scan()
 
     # Sort open ports by port number
     open_ports.sort(key=lambda x: x["port"])
