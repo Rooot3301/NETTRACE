@@ -4,8 +4,7 @@ Uses socket.connect_ex() for TCP port scanning with optional banner grabbing.
 Only runs when explicitly called with active mode enabled.
 """
 import socket
-import threading
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests

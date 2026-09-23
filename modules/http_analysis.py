@@ -13,9 +13,8 @@ import requests.exceptions
 
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
-from config import DEFAULT_TIMEOUT, WAF_SIGNATURES, CDN_SIGNATURES, TAKEOVER_FINGERPRINTS
+from config import DEFAULT_TIMEOUT, WAF_SIGNATURES, CDN_SIGNATURES
 
 console = Console()
 
@@ -185,7 +184,6 @@ def _detect_technologies(headers: Dict[str, str], body: str = "") -> List[str]:
 def _detect_waf(headers: Dict[str, str], body: str = "") -> Optional[str]:
     """Detect WAF from response headers."""
     headers_lower = {k.lower(): v.lower() for k, v in headers.items()}
-    body_lower = body.lower()[:5000] if body else ""
 
     for header_pat, waf_name in WAF_SIGNATURES.items():
         h_lower = header_pat.lower()
@@ -404,7 +402,6 @@ def _display_http(result: Dict[str, Any]) -> None:
     sec_table.add_column("Value", style="dim", overflow="fold")
 
     sec_headers = result.get("security_headers", {})
-    missing = result.get("missing_headers", [])
 
     for header in SECURITY_HEADERS:
         if header in sec_headers:

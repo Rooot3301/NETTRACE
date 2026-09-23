@@ -77,7 +77,7 @@ def export_txt(results: Dict[str, Any], filename: str) -> bool:
             lines.append(f"  Name Servers:      {_list_to_str(whois.get('name_servers', []))}")
             status_list = whois.get("status", [])
             if status_list:
-                lines.append(f"  Status:")
+                lines.append("  Status:")
                 for s in status_list[:5]:
                     lines.append(f"    - {s}")
 
@@ -131,7 +131,6 @@ def export_txt(results: Dict[str, Any], filename: str) -> bool:
             lines.append(f"  Security Headers Score: {_fmt(http.get('headers_score'))}/100")
 
             sec_headers = http.get("security_headers", {})
-            missing = http.get("missing_headers", [])
             lines.append("\n  Security Headers:")
             for header in [
                 "Strict-Transport-Security", "Content-Security-Policy",
@@ -210,32 +209,32 @@ def export_txt(results: Dict[str, Any], filename: str) -> bool:
             lines.append(f"  Email Security Score: {email.get('email_score', 0)}/100")
 
             spf = email.get("spf", {})
-            lines.append(f"\n  SPF:")
+            lines.append("\n  SPF:")
             if spf.get("found"):
-                lines.append(f"    Status:  Configured")
+                lines.append("    Status:  Configured")
                 lines.append(f"    Policy:  {spf.get('policy', 'N/A')}")
                 lines.append(f"    Record:  {_fmt(spf.get('record'))[:100]}")
             else:
-                lines.append(f"    Status:  MISSING")
+                lines.append("    Status:  MISSING")
 
             dmarc = email.get("dmarc", {})
-            lines.append(f"\n  DMARC:")
+            lines.append("\n  DMARC:")
             if dmarc.get("found"):
-                lines.append(f"    Status:  Configured")
+                lines.append("    Status:  Configured")
                 lines.append(f"    Policy:  {dmarc.get('policy', 'N/A')}")
                 lines.append(f"    pct:     {dmarc.get('pct', 100)}%")
                 lines.append(f"    rua:     {_fmt(dmarc.get('rua'))}")
             else:
-                lines.append(f"    Status:  MISSING")
+                lines.append("    Status:  MISSING")
 
             dkim = email.get("dkim", {})
-            lines.append(f"\n  DKIM:")
+            lines.append("\n  DKIM:")
             if dkim.get("found"):
                 selectors = dkim.get("found_selectors", [])
-                lines.append(f"    Status:    Found")
+                lines.append("    Status:    Found")
                 lines.append(f"    Selectors: {', '.join(selectors)}")
             else:
-                lines.append(f"    Status:  Not found (common selectors checked)")
+                lines.append("    Status:  Not found (common selectors checked)")
 
             bimi = email.get("bimi", {})
             lines.append(f"\n  BIMI:    {'Configured' if bimi.get('found') else 'Not configured'}")

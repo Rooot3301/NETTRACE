@@ -3,14 +3,13 @@ NetTrace v2 - WHOIS Analysis Module
 Performs WHOIS lookups with robust date parsing and rich display.
 """
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 import whois
 from dateutil import parser as dateutil_parser
 
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 console = Console()
 

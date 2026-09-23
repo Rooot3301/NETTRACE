@@ -6,7 +6,7 @@ Detects potential subdomain takeover via CNAME fingerprinting.
 import subprocess
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Any, List, Optional, Set
+from typing import Dict, Any, Optional, Set
 
 import requests
 import requests.exceptions

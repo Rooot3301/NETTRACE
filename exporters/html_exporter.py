@@ -3,9 +3,8 @@ NetTrace v2 - HTML Exporter
 Generates a completely self-contained, offline-viewable HTML security report.
 No external dependencies - all CSS and JS are inline.
 """
-import json
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 
 def _esc(val) -> str:
@@ -682,7 +681,6 @@ def _email_card(email: Dict) -> str:
         return f'<span class="status-present">Configured{(" (" + _esc(policy) + ")") if policy else ""}</span>'
 
     spf_policy = spf.get("policy")
-    spf_color = "#e74c3c" if spf_policy == "pass_all" else ("#f39c12" if spf_policy == "softfail" else "#2ecc71")
 
     rows = [
         ("SPF", check_status(spf.get("found"), spf_policy, ["fail", "softfail"]),
@@ -895,7 +893,6 @@ def _scoring_card(scoring: Dict) -> str:
             rec_html += f'<div class="alert alert-info">{_esc(rec)}</div>'
 
     # Gauge visual using CSS
-    gauge_fill = int((score / 100) * 280)  # max degrees = 180 degrees arc
     bar_width = score
 
     return f"""
@@ -1144,5 +1141,5 @@ def export_html(results: Dict[str, Any], filename: str) -> bool:
 
         return True
 
-    except (OSError, TypeError, AttributeError) as e:
+    except (OSError, TypeError, AttributeError):
         return False

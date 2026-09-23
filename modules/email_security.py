@@ -2,7 +2,7 @@
 NetTrace v2 - Email Security Analysis Module
 Checks SPF, DMARC, DKIM, BIMI, and MTA-STS records for a domain.
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 import dns.resolver
 import dns.exception

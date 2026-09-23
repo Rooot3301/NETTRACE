@@ -101,7 +101,6 @@ def generate_dorks(domain: str) -> Dict[str, Any]:
 
 def display_dorks(dorks_result: Dict[str, Any]) -> None:
     """Display dorks with rich tables, one per category."""
-    domain = dorks_result.get("domain", "")
     dorks = dorks_result.get("dorks", {})
 
     for category, dork_list in dorks.items():

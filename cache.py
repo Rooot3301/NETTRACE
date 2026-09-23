@@ -3,7 +3,6 @@ NetTrace v2 - Local Cache Manager
 Stores analysis results as JSON files with TTL-based expiration.
 """
 import json
-import os
 import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List

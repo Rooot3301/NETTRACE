@@ -274,7 +274,6 @@ def _build_recommendations(breakdown: Dict[str, Any], whois: Dict, dns: Dict,
         recs.append("New domain detected - verify legitimacy before trusting")
 
     # DNS
-    dns_score = breakdown.get("dns_completeness", {})
     if dns and not dns.get("mx_records"):
         recs.append("No MX records - domain cannot receive email (may be intentional)")
 

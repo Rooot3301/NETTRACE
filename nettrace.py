@@ -8,7 +8,6 @@ import argparse
 import json
 import re
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Callable, Tuple
@@ -19,11 +18,9 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.prompt import Prompt, Confirm
 from rich.text import Text
-from rich import print as rprint
-from rich.columns import Columns
 from rich.rule import Rule
 
-from config import VERSION, TOOL_NAME, AUTHOR
+from config import VERSION, TOOL_NAME
 from cache import CacheManager
 
 console = Console()
@@ -95,7 +92,6 @@ def run_analysis(domain: str, options: Dict[str, Any]) -> Optional[Dict[str, Any
     Returns:
         Complete results dict, or None on fatal error.
     """
-    verbose = options.get("verbose", False)
     active = options.get("active", False)
     no_cache = options.get("no_cache", False)
     json_only = options.get("json_only", False)
